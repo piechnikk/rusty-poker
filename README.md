@@ -21,7 +21,7 @@ All endpoints should be prepended with `v1/`, i.e. `v1/create_game`
     - (500) `{"error": string}`
 <br>
 
-- GET /games - gets all games
+- GET /games - gets all games <br>
     Responses:
     - (200) `{"message": "success", "games": Game[]}`
     - (500) `{"error": string}`
@@ -158,11 +158,12 @@ Player:
 ## Enums
 ```js
 PlayerState[
+    "ready",
+    "not_ready",
     "active",
-    "waiting",
     "all-ined",
     "folded",
-    "dead"
+    "left"
 ]
 ```
 
