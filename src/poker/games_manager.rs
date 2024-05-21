@@ -28,4 +28,29 @@ impl GamesManager {
             Some(game) => Ok(game)
         }
     }
+
+    pub fn get_all_games_data(&self) -> Vec<GameData> {
+        let mut all_games_data: Vec<GameData> = Vec::new();
+
+        for game in self.games.values() {
+            let game_data = GameData{ 
+                seats_count: game.max_players, 
+                seats_occupied: game.players_count(),
+                small_blind: game.small_blind,
+                big_blind: game.big_blind,
+                initial_balance: game.initial_balance
+            };
+            all_games_data.push(game_data);
+        }
+
+        all_games_data
+    }
+}
+
+pub struct GameData {
+    pub seats_count: usize,
+    pub seats_occupied: u8,
+    pub small_blind: u64,
+    pub big_blind: u64,
+    pub initial_balance: u64
 }
