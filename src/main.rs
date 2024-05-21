@@ -1,5 +1,6 @@
 mod poker;
 
+use actix_cors::Cors;
 use actix_session::{Session, SessionMiddleware};
 use actix_web::cookie::Key;
 use actix_web::{get, post, web, App, HttpResponse, HttpServer, Responder};
@@ -83,7 +84,15 @@ async fn create_game(_body: web::Json<CreateGame>) -> impl Responder {
 async fn games() -> impl Responder {
     let response = serde_json::json!({
         "message": "success",
-        "games": [0]
+        "games": [{
+            "game_id": Uuid::new_v4(),
+            "seats_count": 8,
+            "seats_occupied": 2,
+            "small_blind": 10,
+            "big_blind": 20,
+            "initial_balance": 100,
+            "bet_time": 30
+        }]
     });
 
     HttpResponse::Ok().json(response)
@@ -193,6 +202,7 @@ async fn main() -> std::io::Result<()> {
                 actix_session::storage::CookieSessionStore::default(),
                 secret_key.clone(),
             ))
+            .wrap(Cors::default().allow_any_origin())
             .service(hello)
             .service(create_game)
             .service(games)
