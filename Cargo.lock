@@ -1044,6 +1044,7 @@ dependencies = [
  "actix-cors",
  "actix-session",
  "actix-web",
+ "rand",
  "serde",
  "serde_json",
  "tokio",
