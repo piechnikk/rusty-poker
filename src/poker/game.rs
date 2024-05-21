@@ -8,15 +8,15 @@ use super::player::PlayerState;
 pub struct Game {
     players: HashMap<Uuid, Player>,
     players_by_seats: Vec<Option<Uuid>>,
-    small_blind: u64,
-    big_blind: u64, // typically 2 * small_blind, but not always
-    initial_balance: u64,
+    pub small_blind: u64,
+    pub big_blind: u64, // typically 2 * small_blind, but not always
+    pub initial_balance: u64,
     deck: [Card; 52],
     community_cards: [Card; 5],
     dealer_seat: usize,
     after_big_blind_seat: usize,
     active_player: usize,
-    max_players: usize,
+    pub max_players: usize,
     game_phase: GamePhase
 }
 
@@ -258,7 +258,7 @@ impl Game {
         }
     }
 
-    fn players_count(&self) -> u8 {
+    pub fn players_count(&self) -> u8 {
         let mut count = 0;
         for player_id in &self.players_by_seats {
             match player_id {
