@@ -1,5 +1,7 @@
 use crate::poker::game::{Card, Color, Rank};
+use serde::Serialize;
 
+#[derive(Clone)]
 pub struct Player {
     pub seat_index: u8,
     balance: u64,
@@ -91,7 +93,7 @@ impl Player {
     }
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone)]
 pub enum PlayerState {
     Ready, // only before game begins
     NotReady, // only before game begins

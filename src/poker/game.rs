@@ -2,9 +2,9 @@ use std::collections::HashMap;
 use uuid::Uuid;
 use crate::poker::player::{Player, PlayerAction};
 use rand::{thread_rng, Rng};
-
 use super::player::PlayerState;
 
+#[derive(Clone)]
 pub struct Game {
     players: HashMap<Uuid, Player>,
     players_by_seats: Vec<Option<Uuid>>,
