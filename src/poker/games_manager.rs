@@ -4,7 +4,10 @@ use crate::poker::game::{Game};
 use uuid::Uuid;
 // use crate::poker::player;
 
-struct GamesManager {
+use std::sync::{RwLock, Arc};
+
+#[derive(Clone)]
+pub struct GamesManager {
     games: HashMap<Uuid, Game>
 }
 
@@ -29,3 +32,6 @@ impl GamesManager {
         }
     }
 }
+
+// Tworzymy alias GamesManagerArc, który jest Arc opakowującym GamesManager
+pub type GamesManagerArc = Arc<RwLock<GamesManager>>;

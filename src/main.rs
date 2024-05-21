@@ -1,4 +1,11 @@
-mod poker;
+mod poker {
+    pub mod game;
+    pub mod games_manager;
+    pub mod player;
+}
+use std::sync::{Arc, RwLock};
+use poker::games_manager::GamesManager;
+use poker::games_manager::GamesManagerArc;
 
 use actix_cors::Cors;
 use actix_session::{Session, SessionMiddleware};
@@ -18,11 +25,11 @@ enum Action {
 
 #[derive(Deserialize)]
 struct CreateGame {
-    seats_count: i32,
-    small_blind: i32,
-    big_blind: i32,
-    initial_balance: i32,
-    bet_time: i32,
+    seats_count: usize,
+    small_blind: u64,
+    big_blind: u64,
+    initial_balance: u64,
+    bet_time: u64,
 }
 
 #[derive(Deserialize)]
@@ -69,9 +76,15 @@ async fn hello() -> impl Responder {
 }
 
 #[post("/create_game")]
-async fn create_game(_body: web::Json<CreateGame>) -> impl Responder {
-    let new_game_id = Uuid::new_v4();
-
+async fn create_game(data: web::Data<GamesManagerArc>, body: web::Json<CreateGame>) -> impl Responder {
+    let mut games_manager = data.write().unwrap();
+    let new_game_id = games_manager.new_game(
+        body.seats_count,
+        body.small_blind,
+        body.big_blind,
+        body.initial_balance,
+    );
+    
     let response = serde_json::json!({
         "message": "success",
         "game_id": new_game_id
@@ -196,8 +209,11 @@ async fn quit_game(session: Session, _body: web::Json<GameId>) -> impl Responder
 async fn main() -> std::io::Result<()> {
     let secret_key = Key::generate();
 
+    let mut games_manager = Arc::new(RwLock::new(GamesManager::new_manager()));
+
     HttpServer::new(move || {
         App::new()
+            .app_data(web::Data::new(games_manager.clone()))
             .wrap(SessionMiddleware::new(
                 actix_session::storage::CookieSessionStore::default(),
                 secret_key.clone(),
