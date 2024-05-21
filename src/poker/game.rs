@@ -3,7 +3,7 @@ use uuid::Uuid;
 use crate::poker::player::{Player, PlayerAction};
 use rand::{thread_rng, Rng};
 
-struct Game {
+pub struct Game {
     players: HashMap<Uuid, Player>,
     players_by_seats: Vec<Option<Uuid>>,
     small_blind: u64,
