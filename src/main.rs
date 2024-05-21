@@ -1,15 +1,18 @@
 mod poker;
 
+use actix_session::{Session, SessionMiddleware};
+use actix_web::cookie::Key;
 use actix_web::{get, post, web, App, HttpResponse, HttpServer, Responder};
 use serde::Deserialize;
 use uuid::Uuid;
 
-#[derive(Deserialize)]
+// handlers structures
+#[derive(Deserialize, Debug)]
 enum Action {
-    raise,
-    call,
-    check,
-    fold,
+    Raise,
+    Call,
+    Check,
+    Fold,
 }
 
 #[derive(Deserialize)]
@@ -46,13 +49,26 @@ struct PerformAction {
     action: Action,
 }
 
+fn check_joined(session: &Session) -> Result<(), HttpResponse> {
+    if let Some(joined) = session.get::<bool>("joined").unwrap() {
+        if joined {
+            Ok(())
+        } else {
+            Err(HttpResponse::Unauthorized().body("Unauthorized"))
+        }
+    } else {
+        Err(HttpResponse::Unauthorized().body("Unauthorized"))
+    }
+}
+
+// handlers
 #[get("/")]
 async fn hello() -> impl Responder {
     HttpResponse::Ok().body("Hello world!")
 }
 
 #[post("/create_game")]
-async fn create_game(body: web::Json<CreateGame>) -> impl Responder {
+async fn create_game(_body: web::Json<CreateGame>) -> impl Responder {
     let new_game_id = Uuid::new_v4();
 
     let response = serde_json::json!({
@@ -74,7 +90,10 @@ async fn games() -> impl Responder {
 }
 
 #[post("/join_game")]
-async fn join_game(body: web::Json<JoinGame>) -> impl Responder {
+async fn join_game(session: Session, _body: web::Json<JoinGame>) -> impl Responder {
+    session.insert("joined", true).unwrap();
+    session.insert("player_id", Uuid::new_v4()).unwrap();
+
     let response = serde_json::json!({
         "message": "success"
     });
@@ -83,16 +102,36 @@ async fn join_game(body: web::Json<JoinGame>) -> impl Responder {
 }
 
 #[post("/set_ready")]
-async fn set_ready(body: web::Json<SetReady>) -> impl Responder {
-    let response = serde_json::json!({
+async fn set_ready(session: Session, _body: web::Json<SetReady>) -> impl Responder {
+    if let Err(err) = check_joined(&session) {
+        return err;
+    }
+
+    let mut response = serde_json::json!({
         "message": "success"
     });
 
-    HttpResponse::Ok().json(response)
+    if let Some(user_id) = session.get::<bool>("user_id").unwrap() {
+        response = serde_json::json!({
+            "message": "success",
+            "user_id": user_id
+        });
+    }
+
+    return HttpResponse::Ok().json(response);
 }
 
 #[get("/game_state")]
-async fn game_state(query: web::Query<GameId>) -> impl Responder {
+async fn game_state(session: Session, query: web::Query<GameId>) -> impl Responder {
+    if let Err(_err) = check_joined(&session) {
+        let response = serde_json::json!({
+            "message": "success",
+            "game_state": "unauthorized"
+        });
+
+        return HttpResponse::Ok().json(response);
+    }
+
     let response = serde_json::json!({
         "message": "success",
         "game_state": query.game_id
@@ -102,7 +141,12 @@ async fn game_state(query: web::Query<GameId>) -> impl Responder {
 }
 
 #[get("/listen_changes")]
-async fn listen_changes(query: web::Query<GameId>) -> impl Responder {
+async fn listen_changes(session: Session, query: web::Query<GameId>) -> impl Responder {
+    // long polling
+    if let Err(err) = check_joined(&session) {
+        return err;
+    }
+
     let response = serde_json::json!({
         "message": "updated",
         "game_state": query.game_id
@@ -112,7 +156,11 @@ async fn listen_changes(query: web::Query<GameId>) -> impl Responder {
 }
 
 #[post("/perform_action")]
-async fn perform_action(body: web::Json<PerformAction>) -> impl Responder {
+async fn perform_action(session: Session, _body: web::Json<PerformAction>) -> impl Responder {
+    if let Err(err) = check_joined(&session) {
+        return err;
+    }
+
     let response = serde_json::json!({
         "message": "success"
     });
@@ -121,7 +169,13 @@ async fn perform_action(body: web::Json<PerformAction>) -> impl Responder {
 }
 
 #[post("/quit_game")]
-async fn quit_game(body: web::Json<GameId>) -> impl Responder {
+async fn quit_game(session: Session, _body: web::Json<GameId>) -> impl Responder {
+    if let Err(err) = check_joined(&session) {
+        return err;
+    }
+
+    session.remove("joined");
+
     let response = serde_json::json!({
         "message": "success"
     });
@@ -131,8 +185,14 @@ async fn quit_game(body: web::Json<GameId>) -> impl Responder {
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    HttpServer::new(|| {
+    let secret_key = Key::generate();
+
+    HttpServer::new(move || {
         App::new()
+            .wrap(SessionMiddleware::new(
+                actix_session::storage::CookieSessionStore::default(),
+                secret_key.clone(),
+            ))
             .service(hello)
             .service(create_game)
             .service(games)
