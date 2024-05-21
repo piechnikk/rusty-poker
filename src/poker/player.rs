@@ -3,9 +3,9 @@ use crate::poker::game::{Card, Color, Rank};
 pub struct Player {
     pub seat_index: u8,
     balance: u64,
-    current_bet: u64,
+    pub current_bet: u64,
     total_bet: u64,
-    state: PlayerState,
+    pub state: PlayerState,
     appearance_type: u8,
     cards: [Card; 2]
 }
@@ -92,7 +92,7 @@ impl Player {
 }
 
 #[derive(PartialEq)]
-enum PlayerState {
+pub enum PlayerState {
     Ready, // only before game begins
     NotReady, // only before game begins
     Active, // when player checked, bet or raised
