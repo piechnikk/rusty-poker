@@ -48,6 +48,7 @@ struct JoinGame {
 #[derive(Deserialize)]
 struct SetReady {
     game_id: Uuid,
+    player_id: Uuid,
     new_ready_state: bool,
 }
 
@@ -130,7 +131,7 @@ async fn join_game(data: web::Data<GamesManagerArc>, session: Session, body: web
 }
 
 #[post("/set_ready")]
-async fn set_ready(session: Session, _body: web::Json<SetReady>) -> impl Responder {
+async fn set_ready(data: web::Data<GamesManagerArc>, session: Session, body: web::Json<SetReady>) -> impl Responder {
     if let Err(err) = check_joined(&session) {
         return err;
     }
@@ -139,10 +140,11 @@ async fn set_ready(session: Session, _body: web::Json<SetReady>) -> impl Respond
         "message": "success"
     });
 
-    if let Some(user_id) = session.get::<bool>("user_id").unwrap() {
+    let mut games_manager = data.write().unwrap();
+    if let Ok(game) = games_manager.get_game_mut(body.game_id) {
+        let _ = game.set_ready(body.player_id, body.new_ready_state);
         response = serde_json::json!({
             "message": "success",
-            "user_id": user_id
         });
     }
 

@@ -157,7 +157,24 @@ impl <'a> Game {
         let player = Player::new_player(seat_index, self.initial_balance, appearance_type);
         self.players.insert(player_id, seat_index as usize);
         self.players_by_seats[seat_index as usize] = Some(player);
+
+        if self.players.len() == self.max_players {
+            let _ = self.start_game();
+        }
+
         Ok(player_id)
+    }
+
+    pub fn set_ready(&mut self, player_id: Uuid, ready: bool) -> Result<bool, &str> {
+        let player_seat = self.players.get(&player_id);
+        match player_seat {
+            None => return Err("player not found"),
+            Some(player_seat_idx) => {
+                self.players_by_seats[*player_seat_idx].unwrap().set_ready(ready);
+            }
+        }
+
+        Ok(ready)
     }
 
     pub fn player_action(&'a mut self, player_index: usize, action: PlayerAction, amount: u64) -> u8 {        
@@ -288,6 +305,13 @@ impl <'a> Game {
     pub fn start_round(&mut self) {
         self.deal_cards();
         self.active_player = self.dealer_seat;
+        
+        for player in self.players_by_seats.iter_mut() {
+            match player {
+                None => (),
+                Some(pl) => pl.state = PlayerState::Active
+            }
+        }
 
         self.set_next_active_player();
 
