@@ -283,7 +283,15 @@ impl <'a> Game {
             dealer: self.dealer_seat,
             players: self.players_by_seats.iter().map(
                 |opt_player| match opt_player {
-                    Some(player) => Some(PlayerData{seat_index: player.seat_index, balance: player.balance, state: player.state, bet_amount: player.current_bet, nickname: "ela".to_string()}),
+                    Some(player) => Some(
+                        PlayerData{
+                            seat_index: player.seat_index, 
+                            balance: player.balance, 
+                            state: player.state, 
+                            bet_amount: player.current_bet, 
+                            nickname: self.nicknames[player.seat_index as usize].as_ref().unwrap().to_string()
+                        }
+                    ),
                     None => None
                 }
             ).collect()
