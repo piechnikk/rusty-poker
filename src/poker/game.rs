@@ -4,6 +4,7 @@ use crate::poker::player::{Player, PlayerAction, PlayerData};
 use crate::poker::games_manager::{GameState};
 use rand::{thread_rng, Rng};
 use super::player::PlayerState;
+use poker::{Evaluator, Eval, Card as EvaluatorCard, Rank as EvaluatorRank, Suit as EvaluatorColor};
 
 #[derive(Clone)]
 pub struct Game {
@@ -20,6 +21,7 @@ pub struct Game {
     active_player: usize,
     pub max_players: usize,
     game_phase: GamePhase,
+    evaluator: Evaluator
 }
 
 fn next_player(players_by_seats: &Vec<Option<Player>>, active_player: usize, max_players: usize) -> usize {
@@ -136,7 +138,8 @@ impl <'a> Game {
             after_big_blind_seat: 0,
             active_player: 0,
             max_players,
-            game_phase: GamePhase::PreFlop
+            game_phase: GamePhase::PreFlop,
+            evaluator: Evaluator::new()
         }
     }
 
@@ -210,7 +213,14 @@ impl <'a> Game {
                         };
                     };
                     self.game_phase = GamePhase::PreFlop;
-                    let winner_seat = 0; // todo: determine winner
+                    let winner_seat = self.get_winner_seat();
+                    let winnings: u64 = self.players_by_seats.iter().map(
+                        |opt_player| match opt_player {
+                            Some(player) => player.total_bet,
+                            None => 0
+                        }
+                    ).sum();
+                    self.players_by_seats[winner_seat].unwrap().collect_win(winnings);
                 },
             }
         }
@@ -388,6 +398,46 @@ impl <'a> Game {
         }
     }
 
+    fn get_winner_seat(&self) -> usize {
+        let mut best_seat = 0;
+        let mut best_seat_hand: Option<Eval> = None;
+        let community_cards = self.community_cards.map(|card| card.to_evaluate()).to_vec();
+        for seat_id in 0..self.max_players {
+            match self.players_by_seats[seat_id] {
+                None => (),
+                Some(player) => {
+                    match player.state {
+                        PlayerState::Folded | PlayerState::Left => (),
+                        _ => {
+                            let private_cards = player.cards.map(|card| card.to_evaluate()).to_vec();
+                            let all_cards: Vec<EvaluatorCard> = community_cards.iter().chain(private_cards.iter()).cloned().collect();
+                            let current_hand = self.evaluator.evaluate(all_cards);
+                            match current_hand {
+                                Err(_) => println!("error evaluating hand"),
+                                Ok(eval) => {
+                                    match best_seat_hand {
+                                        None => {
+                                            best_seat_hand = Some(eval);
+                                            best_seat = player.seat_index;
+                                        },
+                                        Some(prev_eval) => {
+                                            if eval.is_better_than(prev_eval) {
+                                                best_seat_hand = Some(eval);
+                                                best_seat = player.seat_index;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        best_seat as usize
+    }
+
     pub fn players_count(&self) -> u8 {
         let mut count = 0;
         for player_id in &self.players_by_seats {
@@ -437,6 +487,18 @@ pub enum Color {
     Clubs
 }
 
+impl Color {
+    pub const fn to_evaluate(self) -> EvaluatorColor {
+        use Color::*;
+        match self {
+            Hearts => EvaluatorColor::Hearts,
+            Diamonds => EvaluatorColor::Diamonds,
+            Spades => EvaluatorColor::Spades,
+            Clubs => EvaluatorColor::Clubs
+        }
+    }
+}
+
 #[derive(Clone, Copy)]
 pub enum Rank {
     Two,
@@ -454,6 +516,28 @@ pub enum Rank {
     Ace
 }
 
+impl Rank {
+    pub const fn to_evaluate(self) -> EvaluatorRank {
+        use Rank::*;
+        match self {
+            Two => EvaluatorRank::Two,
+            Three => EvaluatorRank::Three,
+            Four => EvaluatorRank::Four,
+            Five => EvaluatorRank::Five,
+            Six => EvaluatorRank::Six,
+            Seven => EvaluatorRank::Seven,
+            Eight => EvaluatorRank::Eight,
+            Nine => EvaluatorRank::Nine,
+            Ten => EvaluatorRank::Ten,
+            Jack => EvaluatorRank::Jack,
+            Queen => EvaluatorRank::Queen,
+            King => EvaluatorRank::King,
+            Ace => EvaluatorRank::Ace
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
 enum GamePhase {
     PreFlop, // every player has 2 cards, 0 community cards
     Flop, // first 3 community cards
@@ -470,5 +554,9 @@ pub struct Card {
 impl Card {
     pub fn new(color: Color, rank: Rank) -> Card {
         Card{color, rank}
+    }
+
+    pub fn to_evaluate(&self) -> EvaluatorCard {
+        EvaluatorCard::new(self.rank.to_evaluate(), self.color.to_evaluate())
     }
 }
