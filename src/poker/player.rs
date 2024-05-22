@@ -1,5 +1,6 @@
 use crate::poker::game::{Card, Color, Rank};
 
+#[derive(Clone, Copy)]
 pub struct Player {
     pub seat_index: u8,
     balance: u64,
@@ -35,7 +36,7 @@ impl Player {
         match action {
             PlayerAction::Bet => self.bet(amount), // amount is how much money to bet
             PlayerAction::AllIn => self.all_in(),
-            PlayerAction::Call => self.bet(amount - self.current_bet), // amount is the beet that is to be called
+            PlayerAction::Call => self.call(amount), // amount is the bet that is to be called
             PlayerAction::Check => self.check(amount), // amount is previous bet that is to be equalized
             PlayerAction::Fold => self.fold()
         }
@@ -45,23 +46,43 @@ impl Player {
         self.cards[which] = card.clone();
     }
     
-    fn check(&self, to_check: u64) -> Result<u64, &str> { // when betting more money is not needed
+    fn check(&mut self, to_check: u64) -> Result<u64, &str> { // when betting more money is not needed
         if self.current_bet < to_check {
             return Err("bet amount too small to check");
         }
+        self.state = PlayerState::Check;
         Ok(self.current_bet)
     }
     
     fn call(&mut self, to_call_total: u64) -> Result<u64, &str> { // when betting more money is needed to match previous players bet
-        self.bet(to_call_total - self.current_bet)
+        let amount = to_call_total - self.current_bet;
+        
+        if amount > self.balance {
+            return Err("insufficient balance");
+        }
+        match self.state {
+            PlayerState::Folded | PlayerState::Left => return Err("player is not able to bet"),
+            _ => ()
+        }
+        self.balance -= amount;
+        self.current_bet += amount;
+
+        self.state = PlayerState::Call;
+
+        if self.balance == 0 {
+            self.state = PlayerState::AllIn;
+        }
+
+        Ok(self.current_bet)
     }
 
     fn bet(&mut self, amount: u64) -> Result<u64, &str> { // also as rise (bet is when you are going first, rise if you aren't first)
         if amount > self.balance {
             return Err("insufficient balance");
         }
-        if self.state != PlayerState::Active {
-            return Err("player is not able to bet");
+        match self.state {
+            PlayerState::Folded | PlayerState::Left => return Err("player is not able to bet"),
+            _ => ()
         }
         self.balance -= amount;
         self.current_bet += amount;
@@ -76,6 +97,7 @@ impl Player {
     fn all_in(&mut self) -> Result<u64, &str> {
         self.current_bet += self.balance;
         self.balance = 0;
+        self.state = PlayerState::AllIn;
         Ok(self.current_bet)
     }
 
@@ -84,18 +106,20 @@ impl Player {
         Ok(self.balance)
     }
 
-    fn collect_bet(&mut self) -> Result<u64, &str> {
+    pub fn collect_bet(&mut self) -> Result<u64, &str> {
         self.total_bet += self.current_bet;
         self.current_bet = 0;
         Ok(self.total_bet)
     }
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone, Copy)]
 pub enum PlayerState {
     Ready, // only before game begins
     NotReady, // only before game begins
-    Active, // when player checked, bet or raised
+    Active, // when player raised or waits for his turn
+    Check, // when player checked
+    Call, // when player called
     AllIn, // when player all-ined
     Folded, // when player folded his current hand
     Left, // when player left the game

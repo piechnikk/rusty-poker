@@ -6,21 +6,22 @@ use rand::{thread_rng, Rng};
 use super::player::PlayerState;
 
 pub struct Game {
-    players: HashMap<Uuid, Player>,
-    players_by_seats: Vec<Option<Uuid>>,
+    players: HashMap<Uuid, usize>, // map player_id to his seat index
+    players_by_seats: Vec<Option<Player>>,
     pub small_blind: u64,
     pub big_blind: u64, // typically 2 * small_blind, but not always
     pub initial_balance: u64,
     deck: [Card; 52],
     community_cards: [Card; 5],
+    community_cards_shown: usize,
     dealer_seat: usize,
     after_big_blind_seat: usize,
     active_player: usize,
     pub max_players: usize,
-    game_phase: GamePhase
+    game_phase: GamePhase,
 }
 
-fn next_player(players_by_seats: &Vec<Option<Uuid>>, active_player: usize, max_players: usize) -> usize {
+fn next_player(players_by_seats: &Vec<Option<Player>>, active_player: usize, max_players: usize) -> usize {
     for seat in (active_player + 1)..max_players {
         match players_by_seats[seat] {
             Some(_) => return seat,
@@ -38,9 +39,27 @@ fn next_player(players_by_seats: &Vec<Option<Uuid>>, active_player: usize, max_p
     0
 }
 
-impl Game {
+fn next_active_player(players_by_seats: &Vec<Option<Player>>, active_player: usize, max_players: usize) -> usize {
+    for seat in (active_player + 1)..max_players {
+        match players_by_seats[seat] {
+            Some(_) => return seat,
+            _ => ()
+        }
+    }
+
+    for seat in 0..max_players {
+        match players_by_seats[seat] {
+            Some(_) => return seat,
+            _ => ()
+        }
+    }
+
+    0
+}
+
+impl <'a> Game {
     pub fn new_game(max_players: usize, small_blind: u64, big_blind: u64, initial_balance: u64) -> Game {
-        let players: HashMap<Uuid, Player> = HashMap::with_capacity(max_players);
+        let players: HashMap<Uuid, usize> = HashMap::with_capacity(max_players);
         let players_by_seats = vec![None; max_players];
         let deck: [Card; 52] = [
             Card { color: Color::Spades, rank: Rank::Two },
@@ -109,7 +128,8 @@ impl Game {
             big_blind, 
             initial_balance, 
             deck, 
-            community_cards, 
+            community_cards,
+            community_cards_shown: 0,
             players_by_seats, 
             dealer_seat: 0,
             after_big_blind_seat: 0,
@@ -124,41 +144,79 @@ impl Game {
         seat_index: u8,
         appearance_type: u8
     ) -> Result<Uuid, &str> {
-        if self.players_by_seats[seat_index as usize] != None {
-            return Err("seat already taken");
+        match self.players_by_seats[seat_index as usize] {
+            Some(_) => return Err("seat already taken"),
+            _ => ()
         }
         let player_id = Uuid::new_v4();
         let player = Player::new_player(seat_index, self.initial_balance, appearance_type);
-        self.players.insert(player_id, player);
+        self.players.insert(player_id, seat_index as usize);
+        self.players_by_seats[seat_index as usize] = Some(player);
         Ok(player_id)
     }
 
-    // you always have to check if this method gives error and if not, call game.set_next_active_player();
-    pub fn player_action(&mut self, player_id: Uuid, action: PlayerAction, amount: u64) -> Result<u64, &str> {
-        let player = match self.players.get_mut(&player_id) {
-            None => return Err("player not found"),
-            Some(player) => {
-                if player.seat_index != self.active_player as u8 {
-                    return Err("it is not your turn");
-                }
-                player
-            }
-        };
+    pub fn player_action(&'a mut self, player_index: usize, action: PlayerAction, amount: u64) -> u8 {        
         
-        let result = player.perform_action(action, amount)?;
+        let player = self.players_by_seats[player_index].as_mut().unwrap();
+        
+        let result = player.perform_action(action, amount);
+        
+        match result {
+            Err(_) => return 0,
+            Ok(_) => ()
+        }
+        
+        let all_even = self.all_bets_even();
+        self.set_next_active_player();
 
-        Ok(result)
-        // let player = self.players.get_mut(&player_id);
-        // match player {
-        //     None => Err("player not found"),
-        //     Some(player) => {
-        //         if player.seat_index != self.active_player as u8 {
-        //             return Err("it is not your turn")
-        //         }
-        //         self.active_player = self.next_player();
-        //         player.perform_action(action, amount)
-        //     }
-        // }
+        if all_even {
+            match self.game_phase {
+                GamePhase::PreFlop => {
+                    self.community_cards_shown = 3;
+                    for seat in 0..self.max_players {
+                        let _ = match &mut self.players_by_seats[seat] {
+                            Some(pl) => pl.collect_bet(),
+                            _ => Err("seat empty")
+                        };
+                    };
+                    self.game_phase = GamePhase::Flop;
+                },
+                GamePhase::Flop => {
+                    self.community_cards_shown = 4;
+                    for seat in 0..self.max_players {
+                        let _ = match &mut self.players_by_seats[seat] {
+                            Some(pl) => pl.collect_bet(),
+                            _ => Err("seat empty")
+                        };
+                    };
+                    self.game_phase = GamePhase::Turn;
+                },
+                GamePhase::Turn => {
+                    self.community_cards_shown = 5;
+                    for seat in 0..self.max_players {
+                        let _ = match &mut self.players_by_seats[seat] {
+                            Some(pl) => pl.collect_bet(),
+                            _ => Err("seat empty")
+                        };
+                    };
+                    self.game_phase = GamePhase::River;
+                },
+                GamePhase::River => {
+                    for seat in 0..self.max_players {
+                        let _ = match &mut self.players_by_seats[seat] {
+                            Some(pl) => pl.collect_bet(),
+                            _ => Err("seat empty")
+                        };
+                    };
+                    self.game_phase = GamePhase::PreFlop;
+                    let winner_seat = 0; // todo: determine winner
+                },
+            }
+        }
+
+        1
+
+        // Ok(result)
     }
 
     pub fn start_game(&mut self) -> Result<u64, &str> {
@@ -173,52 +231,61 @@ impl Game {
             }
         }
         self.dealer_seat = first_taken_seat;
-        self.deal_cards();
 
-        self.set_next_active_player();
-
-        let message = self.player_action(
-            self.players_by_seats[self.active_player].expect("active player is None"), 
-            PlayerAction::Bet, 
-            self.small_blind
-        );
-        match message {
-            Err(_) => {
-                    let _ = self.player_action(
-                    self.players_by_seats[self.active_player].expect("active player is None"), 
-                    PlayerAction::AllIn, 
-                    0
-                );
-            },
-            Ok(_) => ()
-        }
-
-        self.set_next_active_player();
-
-        let message = self.player_action(
-            self.players_by_seats[self.active_player].expect("active player is None"), 
-            PlayerAction::Bet, 
-            self.big_blind
-        );
-        match message {
-            Err(_) => {
-                    let _ = self.player_action(
-                    self.players_by_seats[self.active_player].expect("active player is None"), 
-                    PlayerAction::AllIn, 
-                    0
-                );
-            },
-            Ok(_) => ()
-        }
-
-        self.set_next_active_player();
+        self.start_round();
 
         Ok(0)
     }
 
+    pub fn start_round(&mut self) {
+        self.deal_cards();
+        self.active_player = self.dealer_seat;
+
+        self.set_next_active_player();
+
+        let message = self.player_action(
+            self.active_player, 
+            PlayerAction::Bet, 
+            self.small_blind
+        );
+        match message {
+            0 => {
+                    let _ = self.player_action(
+                        self.active_player, 
+                    PlayerAction::AllIn, 
+                    0
+                );
+            },
+            _ => ()
+        }
+
+        self.set_next_active_player();
+
+        let message = self.player_action(
+            self.active_player, 
+            PlayerAction::Bet, 
+            self.big_blind
+        );
+        match message {
+            0 => {
+                    let _ = self.player_action(
+                        self.active_player, 
+                    PlayerAction::AllIn, 
+                    0
+                );
+            },
+            _ => ()
+        }
+
+        self.set_next_active_player();
+    }
+
     pub fn set_next_active_player(&mut self) {
         let mut next_player_seat = next_player(&self.players_by_seats, self.active_player, self.max_players);
-        let mut next_player_active: bool = self.players.get(&self.players_by_seats[next_player_seat].unwrap()).unwrap().state == PlayerState::Active;
+        let mut next_player_active: bool = match self.players_by_seats[next_player_seat].as_ref().unwrap().state {
+            PlayerState::Folded | PlayerState::Left => false,
+            _ => true
+        };
         let mut i = 0;
         while !next_player_active {
             next_player_seat = next_player(
@@ -226,7 +293,10 @@ impl Game {
                 (self.active_player + i) % self.max_players, 
                 self.max_players
             );
-            next_player_active = self.players.get(&self.players_by_seats[next_player_seat].unwrap()).unwrap().state == PlayerState::Active;
+            next_player_active = match self.players_by_seats[next_player_seat].as_ref().unwrap().state {
+                PlayerState::Folded | PlayerState::Left => false,
+                _ => true
+            };
             i = i + 1;
             if i > 10 {
                 println!("cant find active player!");
@@ -236,13 +306,44 @@ impl Game {
         self.active_player = next_player_seat;
     }
 
+    pub fn get_next_active_player(&self) -> usize {
+        let mut next_player_seat = next_player(&self.players_by_seats, self.active_player, self.max_players);
+        let mut next_player_active: bool = match self.players_by_seats[next_player_seat].as_ref().unwrap().state {
+            PlayerState::Folded | PlayerState::Left => false,
+            _ => true
+        };
+        let mut i = 0;
+        while !next_player_active {
+            next_player_seat = next_player(
+                &self.players_by_seats, 
+                (self.active_player + i) % self.max_players, 
+                self.max_players
+            );
+            next_player_active = match self.players_by_seats[next_player_seat].as_ref().unwrap().state {
+                PlayerState::Folded | PlayerState::Left => false,
+                _ => true
+            };
+            i = i + 1;
+            if i > 10 {
+                println!("cant find active player!");
+                return 0;
+            }
+        }
+        next_player_seat
+    }
+
     fn deal_cards(&mut self) {
         self.shuffle();
         let mut next_card = 0;
-        for player in self.players.values_mut() {
-            player.take_card(0, &self.deck[next_card]);
-            player.take_card(0, &self.deck[next_card + 1]);
-            next_card += 2;
+        for player in self.players_by_seats.iter_mut() {
+            match player {
+                Some(pl) => {
+                    pl.take_card(0, &self.deck[next_card]);
+                    pl.take_card(1, &self.deck[next_card + 1]);
+                    next_card += 2;
+                }
+                None => ()
+            }
         }
         for card_offset in 0..4 {
             self.community_cards[next_card + card_offset] = self.deck[next_card + card_offset].clone();
@@ -271,9 +372,12 @@ impl Game {
 
     fn max_bet(&self) -> u64 {
         let mut max_bet = 0;
-        for player in self.players.values() {
-            if player.current_bet > max_bet {
-                max_bet = player.current_bet;
+        for player in &self.players_by_seats {
+            match player {
+                Some(pl) => if pl.current_bet > max_bet {
+                    max_bet = pl.current_bet;
+                },
+                _ => ()
             }
         }
         max_bet
@@ -281,16 +385,22 @@ impl Game {
 
     fn all_bets_even(&self) -> bool {
         let max_bet = self.max_bet();
-        for player in self.players.values() {
-            if player.current_bet != max_bet {
-                return false;
+        for player in &self.players_by_seats {
+            match player {
+                Some(pl) => match pl.state {
+                    PlayerState::Folded | PlayerState::Left => (),
+                    _ => if pl.current_bet != max_bet {
+                        return false;
+                    },
+                }
+                _ => ()
             }
         }
         true
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 pub enum Color {
     Hearts,
     Diamonds,
@@ -298,7 +408,7 @@ pub enum Color {
     Clubs
 }
 
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 pub enum Rank {
     Two,
     Three,
@@ -322,7 +432,7 @@ enum GamePhase {
     River // 5th community card on the table
 }
 
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 pub struct Card {
     rank: Rank,
     color: Color
