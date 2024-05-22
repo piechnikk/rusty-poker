@@ -48,8 +48,12 @@ impl GamesManager {
         all_games_data
     }
 
-    pub fn get_game_state(&self, game_id: Uuid, player_id: Uuid) -> GameState {
-        GameState{
+    pub fn get_game_state(&self, game_id: Uuid, player_id: Uuid) -> Result<GameState, &str> {
+        // let game = self.games.get(&game_id);
+
+        // match
+
+        Ok(GameState{
             community_cards: vec![
                 Card::new(Color::Spades, Rank::Two),
                 Card::new(Color::Spades, Rank::Two),
@@ -73,7 +77,7 @@ impl GamesManager {
                 Some(PlayerData{seat_index: 2, balance: 20, state: PlayerState::Active, bet_amount: 30, nickname: "ela".to_string()}),
                 None
             ]
-        }
+        })
     }
 }
 
