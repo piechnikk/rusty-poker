@@ -170,10 +170,10 @@ impl <'a> Game {
             Ok(_) => ()
         }
         
-        let all_even = self.all_bets_even();
+        let round_end = self.round_end();
         self.set_next_active_player();
 
-        if all_even {
+        if round_end {
             match self.game_phase {
                 GamePhase::PreFlop => {
                     self.community_cards_shown = 3;
@@ -221,6 +221,8 @@ impl <'a> Game {
                         }
                     ).sum();
                     self.players_by_seats[winner_seat].unwrap().collect_win(winnings);
+                    self.dealer_seat = self.active_player;
+                    self.start_round();
                 },
             }
         }
@@ -472,6 +474,18 @@ impl <'a> Game {
                         return false;
                     },
                 }
+                _ => ()
+            }
+        }
+        true
+    }
+
+    fn round_end(&self) -> bool {
+        for player in &self.players_by_seats {
+            match player {
+                Some(pl) => if pl.state == PlayerState::Active {
+                    return false;
+                },
                 _ => ()
             }
         }

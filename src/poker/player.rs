@@ -91,6 +91,7 @@ impl Player {
         }
         self.balance -= amount;
         self.current_bet += amount;
+        self.state = PlayerState::Active;
 
         if self.balance == 0 {
             self.state = PlayerState::AllIn;
