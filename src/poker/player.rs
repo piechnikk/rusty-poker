@@ -113,6 +113,14 @@ impl Player {
     }
 }
 
+pub struct PlayerData {
+    pub seat_index: u8,
+    pub balance: u64,
+    pub state: PlayerState,
+    pub bet_amount: u64,
+    pub nickname: String
+}
+
 #[derive(PartialEq, Clone, Copy)]
 pub enum PlayerState {
     Ready, // only before game begins

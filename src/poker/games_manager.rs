@@ -1,7 +1,9 @@
 use std::collections::HashMap;
 
-use crate::poker::game::{Game};
+use crate::poker::game::{Game, Card, Color, Rank};
+use crate::poker::player::{Player, PlayerData, PlayerState};
 use uuid::Uuid;
+
 // use crate::poker::player;
 
 struct GamesManager {
@@ -45,6 +47,34 @@ impl GamesManager {
 
         all_games_data
     }
+
+    pub fn get_game_state(&self, game_id: Uuid, player_id: Uuid) -> GameState {
+        GameState{
+            community_cards: vec![
+                Card::new(Color::Spades, Rank::Two),
+                Card::new(Color::Spades, Rank::Two),
+                Card::new(Color::Spades, Rank::Two),
+            ],
+            personal_cards: vec![
+                Card::new(Color::Spades, Rank::Two),
+                Card::new(Color::Spades, Rank::Two),
+            ],
+            bets_placed: vec![None, None, Some(30), Some(60), None, Some(60), None],
+            pot: 150,
+            small_blind: 10,
+            big_blind: 20,
+            dealer: 2,
+            players: vec![
+                None,
+                None,
+                Some(PlayerData{seat_index: 2, balance: 20, state: PlayerState::Active, bet_amount: 30, nickname: "ela".to_string()}),
+                Some(PlayerData{seat_index: 2, balance: 20, state: PlayerState::Active, bet_amount: 30, nickname: "ela".to_string()}),
+                None,
+                Some(PlayerData{seat_index: 2, balance: 20, state: PlayerState::Active, bet_amount: 30, nickname: "ela".to_string()}),
+                None
+            ]
+        }
+    }
 }
 
 pub struct GameData {
@@ -53,4 +83,15 @@ pub struct GameData {
     pub small_blind: u64,
     pub big_blind: u64,
     pub initial_balance: u64
+}
+
+pub struct GameState {
+    community_cards: Vec<Card>,
+    personal_cards: Vec<Card>,
+    bets_placed: Vec<Option<u64>>, // indexed by seats
+    pot: u64,
+    players: Vec<Option<PlayerData>>,
+    small_blind: u64,
+    big_blind: u64,
+    dealer: usize
 }
