@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use uuid::Uuid;
-use crate::poker::player::{Player, PlayerAction};
+use crate::poker::player::{Player, PlayerAction, PlayerData};
+use crate::poker::games_manager::{GameState};
 use rand::{thread_rng, Rng};
 use super::player::PlayerState;
 
@@ -217,6 +218,34 @@ impl <'a> Game {
         1
 
         // Ok(result)
+    }
+
+    pub fn collect_state_data(&self, player_id: Uuid) -> GameState {
+        let player_seat = self.players.get(&player_id);
+
+        GameState{
+            community_cards: self.community_cards[0..self.community_cards_shown].to_vec(),
+            personal_cards: match player_seat {
+                Some(player_index) => self.players_by_seats[*player_index].unwrap().cards.to_vec(),
+                None => vec![]
+            },
+            bets_placed: vec![None; self.max_players],
+            pot: self.players_by_seats.iter().map(
+                |opt_player| match opt_player {
+                    Some(player) => player.current_bet,
+                    None => 0
+                }
+            ).sum(),
+            small_blind: self.small_blind,
+            big_blind: self.big_blind,
+            dealer: self.dealer_seat,
+            players: self.players_by_seats.iter().map(
+                |opt_player| match opt_player {
+                    Some(player) => Some(PlayerData{seat_index: player.seat_index, balance: player.balance, state: player.state, bet_amount: player.current_bet, nickname: "ela".to_string()}),
+                    None => None
+                }
+            ).collect()
+        }
     }
 
     pub fn start_game(&mut self) -> Result<u64, &str> {
