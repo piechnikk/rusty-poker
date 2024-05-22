@@ -11,6 +11,7 @@ use poker::{Evaluator, Eval, Card as EvaluatorCard, Rank as EvaluatorRank, Suit 
 pub struct Game {
     pub players: HashMap<Uuid, usize>, // map player_id to his seat index
     players_by_seats: Vec<Option<Player>>,
+    nicknames: Vec<Option<String>>,
     pub small_blind: u64,
     pub big_blind: u64, // typically 2 * small_blind, but not always
     pub initial_balance: u64,
@@ -65,6 +66,7 @@ impl <'a> Game {
     pub fn new_game(max_players: usize, small_blind: u64, big_blind: u64, initial_balance: u64) -> Game {
         let players: HashMap<Uuid, usize> = HashMap::with_capacity(max_players);
         let players_by_seats = vec![None; max_players];
+        let nicknames = vec![None; max_players];
         let deck: [Card; 52] = [
             Card { color: Color::Spades, rank: Rank::Two },
             Card { color: Color::Spades, rank: Rank::Three },
@@ -140,13 +142,15 @@ impl <'a> Game {
             active_player: 0,
             max_players,
             game_phase: GamePhase::PreFlop,
-            evaluator: Evaluator::new()
+            evaluator: Evaluator::new(),
+            nicknames
         }
     }
 
     pub fn join_game(
         &mut self,
         seat_index: u8,
+        nickname: &str,
         appearance_type: u8
     ) -> Result<Uuid, &str> {
         match self.players_by_seats[seat_index as usize] {
@@ -157,6 +161,8 @@ impl <'a> Game {
         let player = Player::new_player(seat_index, self.initial_balance, appearance_type);
         self.players.insert(player_id, seat_index as usize);
         self.players_by_seats[seat_index as usize] = Some(player);
+
+        self.nicknames[seat_index as usize] = Some(nickname.to_string());
 
         if self.players.len() == self.max_players {
             let _ = self.start_game();

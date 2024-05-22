@@ -48,7 +48,6 @@ struct JoinGame {
 #[derive(Deserialize)]
 struct SetReady {
     game_id: Uuid,
-    player_id: Uuid,
     new_ready_state: bool,
 }
 
@@ -117,7 +116,7 @@ async fn join_game(data: web::Data<GamesManagerArc>, session: Session, body: web
     let mut games_manager = data.write().unwrap();
     
     if let Ok(game) = games_manager.get_game_mut(body.game_id) {
-        match game.join_game(body.chosen_seat, body.appearance_type) {
+        match game.join_game(body.chosen_seat, &body.player_name, body.appearance_type) {
             Err(err) => return HttpResponse::Forbidden().json(serde_json::json!({"message": "error", "content": err})),
             Ok(user_id) => {
                 session.insert("joined", true).unwrap();
@@ -142,7 +141,7 @@ async fn set_ready(data: web::Data<GamesManagerArc>, session: Session, body: web
 
     let mut games_manager = data.write().unwrap();
     if let Ok(game) = games_manager.get_game_mut(body.game_id) {
-        let _ = game.set_ready(body.player_id, body.new_ready_state);
+        let _ = game.set_ready(session.get::<Uuid>("player_id").unwrap().unwrap(), body.new_ready_state);
         response = serde_json::json!({
             "message": "success",
         });
