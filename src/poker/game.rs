@@ -425,6 +425,7 @@ pub enum Rank {
     Ace
 }
 
+#[derive(Clone)]
 enum GamePhase {
     PreFlop, // every player has 2 cards, 0 community cards
     Flop, // first 3 community cards
