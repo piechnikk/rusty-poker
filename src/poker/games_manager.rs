@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use crate::poker::game::{Game};
+use serde::Serialize;
 use uuid::Uuid;
 // use crate::poker::player;
 
@@ -32,11 +33,20 @@ impl GamesManager {
         }
     }
 
+    pub fn get_game_mut(&mut self, game_id: Uuid) -> Result<&mut Game, &str> {
+        let game = self.games.get_mut(&game_id);
+        match game {
+            None => Err("game not found"),
+            Some(game) => Ok(game)
+        }
+    }
+
     pub fn get_all_games_data(&self) -> Vec<GameData> {
         let mut all_games_data: Vec<GameData> = Vec::new();
 
-        for game in self.games.values() {
-            let game_data = GameData{ 
+        for (game_id, game) in &self.games {
+            let game_data = GameData{
+                game_id: *game_id,
                 seats_count: game.max_players, 
                 seats_occupied: game.players_count(),
                 small_blind: game.small_blind,
@@ -50,7 +60,9 @@ impl GamesManager {
     }
 }
 
+#[derive(Serialize)]
 pub struct GameData {
+    pub game_id: Uuid,
     pub seats_count: usize,
     pub seats_occupied: u8,
     pub small_blind: u64,

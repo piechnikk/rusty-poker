@@ -4,14 +4,19 @@ mod poker {
     pub mod player;
 }
 use std::sync::{Arc, RwLock};
+use poker::game::Card;
+use poker::game::Game;
 use poker::games_manager::GamesManager;
 use poker::games_manager::GamesManagerArc;
+use poker::player::Player;
 
 use actix_cors::Cors;
 use actix_session::{Session, SessionMiddleware};
 use actix_web::cookie::Key;
 use actix_web::{get, post, web, App, HttpResponse, HttpServer, Responder};
+use poker::player::PlayerAction;
 use serde::Deserialize;
+use serde::Serialize;
 use uuid::Uuid;
 
 // handlers structures
@@ -36,7 +41,8 @@ struct CreateGame {
 struct JoinGame {
     game_id: Uuid,
     player_name: String,
-    chosen_seat: i32,
+    chosen_seat: u8,
+    appearance_type: u8,
 }
 
 #[derive(Deserialize)]
@@ -53,8 +59,8 @@ struct GameId {
 #[derive(Deserialize)]
 struct PerformAction {
     game_id: Uuid,
-    bet: Option<i32>,
-    action: Action,
+    bet: Option<u64>,
+    action: PlayerAction,
 }
 
 fn check_joined(session: &Session) -> Result<(), HttpResponse> {
@@ -94,33 +100,33 @@ async fn create_game(data: web::Data<GamesManagerArc>, body: web::Json<CreateGam
 }
 
 #[get("/games")]
-async fn games() -> impl Responder {
+async fn games(data: web::Data<GamesManagerArc>) -> impl Responder {
+    let games_manager = data.read().unwrap();
+    let games = games_manager.get_all_games_data();
     let response = serde_json::json!({
         "message": "success",
-        "games": [{
-            "game_id": Uuid::new_v4(),
-            "seats_count": 8,
-            "seats_occupied": 2,
-            "small_blind": 10,
-            "big_blind": 20,
-            "initial_balance": 100,
-            "bet_time": 30
-        }]
+        "games": games
     });
 
     HttpResponse::Ok().json(response)
 }
 
 #[post("/join_game")]
-async fn join_game(session: Session, _body: web::Json<JoinGame>) -> impl Responder {
-    session.insert("joined", true).unwrap();
-    session.insert("player_id", Uuid::new_v4()).unwrap();
+async fn join_game(data: web::Data<GamesManagerArc>, session: Session, body: web::Json<JoinGame>) -> impl Responder {
+    let mut games_manager = data.write().unwrap();
 
-    let response = serde_json::json!({
-        "message": "success"
-    });
-
-    HttpResponse::Ok().json(response)
+    if let Ok(game) = games_manager.get_game_mut(body.game_id) {
+        match game.join_game(body.chosen_seat, body.appearance_type) {
+            Err(err) => return HttpResponse::Forbidden().json(serde_json::json!({"message": "error", "content": err})),
+            Ok(user_id) => {
+                session.insert("joined", true).unwrap();
+                session.insert("player_id", user_id).unwrap();
+                return HttpResponse::Ok().json(serde_json::json!({"message": "success"}))
+            }
+        }
+    } else {
+        HttpResponse::Forbidden().json(serde_json::json!({"message": "error"}))
+    }
 }
 
 #[post("/set_ready")]
@@ -178,10 +184,18 @@ async fn listen_changes(session: Session, query: web::Query<GameId>) -> impl Res
 }
 
 #[post("/perform_action")]
-async fn perform_action(session: Session, _body: web::Json<PerformAction>) -> impl Responder {
+async fn perform_action(data: web::Data<GamesManagerArc>, session: Session, body: web::Json<PerformAction>) -> impl Responder {
     if let Err(err) = check_joined(&session) {
         return err;
     }
+    let mut games_manager = data.write().unwrap();
+    if let Ok(game) = games_manager.get_game_mut(body.game_id) {
+        game.player_action(session.get::<Uuid>("player_id").unwrap().unwrap(), body.action, body.bet.unwrap());
+        
+    } else {
+        return HttpResponse::Forbidden().json(serde_json::json!({"message": "error"}));
+    }
+
 
     let response = serde_json::json!({
         "message": "success"
@@ -218,7 +232,7 @@ async fn main() -> std::io::Result<()> {
                 actix_session::storage::CookieSessionStore::default(),
                 secret_key.clone(),
             ))
-            .wrap(Cors::default().allow_any_origin())
+            .wrap(Cors::default().allow_any_origin().allow_any_method().allow_any_header().supports_credentials().max_age(3600))
             .service(hello)
             .service(create_game)
             .service(games)
