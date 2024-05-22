@@ -114,6 +114,7 @@ impl Player {
     }
 }
 
+#[derive(Serialize)]
 pub struct PlayerData {
     pub seat_index: u8,
     pub balance: u64,
@@ -122,7 +123,7 @@ pub struct PlayerData {
     pub nickname: String
 }
 
-#[derive(PartialEq, Clone, Copy)]
+#[derive(PartialEq, Clone, Copy, Serialize)]
 pub enum PlayerState {
     Ready, // only before game begins
     NotReady, // only before game begins
@@ -134,7 +135,7 @@ pub enum PlayerState {
     Left, // when player left the game
 }
 
-#[derive(PartialEq, Deserialize, Clone, Copy)]
+#[derive(PartialEq, Deserialize, Clone, Copy, Serialize)]
 pub enum PlayerAction {
     Check,
     Call,
