@@ -1,4 +1,5 @@
 use crate::poker::game::{Card, Color, Rank};
+use serde::Serialize;
 
 #[derive(Clone, Copy)]
 pub struct Player {

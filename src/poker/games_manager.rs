@@ -6,7 +6,10 @@ use uuid::Uuid;
 
 // use crate::poker::player;
 
-struct GamesManager {
+use std::sync::{RwLock, Arc};
+
+#[derive(Clone)]
+pub struct GamesManager {
     games: HashMap<Uuid, Game>
 }
 
@@ -99,3 +102,5 @@ pub struct GameState {
     big_blind: u64,
     dealer: usize
 }
+
+pub type GamesManagerArc = Arc<RwLock<GamesManager>>;
