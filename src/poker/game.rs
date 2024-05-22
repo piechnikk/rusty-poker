@@ -180,6 +180,8 @@ impl <'a> Game {
             }
         }
 
+        let _ = self.start_game();
+
         Ok(ready)
     }
 
@@ -301,6 +303,14 @@ impl <'a> Game {
     pub fn start_game(&mut self) -> Result<u64, &str> {
         if self.players_count() < 3 {
             return Err("too few players");
+        }
+        for player in &self.players_by_seats {
+            match player {
+                None => (),
+                Some(pl) => if pl.state == PlayerState::NotReady {
+                    return Err("not all ready")
+                }
+            }
         }
         let mut first_taken_seat: usize = 0;
         for (idx, player_id) in self.players_by_seats.iter().enumerate() {
