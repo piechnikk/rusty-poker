@@ -4,12 +4,12 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Copy)]
 pub struct Player {
     pub seat_index: u8,
-    balance: u64,
+    pub balance: u64,
     pub current_bet: u64,
-    total_bet: u64,
+    pub total_bet: u64,
     pub state: PlayerState,
     appearance_type: u8,
-    cards: [Card; 2]
+    pub cards: [Card; 2]
 }
 
 impl Player {
@@ -45,6 +45,10 @@ impl Player {
 
     pub fn take_card(&mut self, which: usize, card: &Card) { // which is index, 0 or 1
         self.cards[which] = card.clone();
+    }
+
+    pub fn collect_win(&mut self, amount: u64) {
+        self.balance += amount;
     }
     
     fn check(&mut self, to_check: u64) -> Result<u64, &str> { // when betting more money is not needed
@@ -87,6 +91,7 @@ impl Player {
         }
         self.balance -= amount;
         self.current_bet += amount;
+        self.state = PlayerState::Active;
 
         if self.balance == 0 {
             self.state = PlayerState::AllIn;

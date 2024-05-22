@@ -14,3 +14,4 @@ uuid = { version = "1.8", features = ["serde", "v4", "fast-rng", "macro-diagnost
 tokio = { version = "1.37.0", features = ["full"]}
 actix-cors = "0.7"
 rand = "0.8.5"
+poker = "0.5"

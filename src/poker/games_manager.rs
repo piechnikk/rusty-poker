@@ -62,35 +62,12 @@ impl GamesManager {
     }
 
     pub fn get_game_state(&self, game_id: Uuid, player_id: Uuid) -> Result<GameState, &str> {
-        // let game = self.games.get(&game_id);
+        let game = self.games.get(&game_id);
 
-        // match
-
-        Ok(GameState{
-            community_cards: vec![
-                Card::new(Color::Spades, Rank::Two),
-                Card::new(Color::Spades, Rank::Two),
-                Card::new(Color::Spades, Rank::Two),
-            ],
-            personal_cards: vec![
-                Card::new(Color::Spades, Rank::Two),
-                Card::new(Color::Spades, Rank::Two),
-            ],
-            bets_placed: vec![None, None, Some(30), Some(60), None, Some(60), None],
-            pot: 150,
-            small_blind: 10,
-            big_blind: 20,
-            dealer: 2,
-            players: vec![
-                None,
-                None,
-                Some(PlayerData{seat_index: 2, balance: 20, state: PlayerState::Active, bet_amount: 30, nickname: "ela".to_string()}),
-                Some(PlayerData{seat_index: 2, balance: 20, state: PlayerState::Active, bet_amount: 30, nickname: "ela".to_string()}),
-                None,
-                Some(PlayerData{seat_index: 2, balance: 20, state: PlayerState::Active, bet_amount: 30, nickname: "ela".to_string()}),
-                None
-            ]
-        })
+        match game {
+            None => return Err("game not found"),
+            Some(game) => Ok(game.collect_state_data(player_id))
+        }
     }
 }
 
@@ -105,14 +82,15 @@ pub struct GameData {
 }
 
 pub struct GameState {
-    community_cards: Vec<Card>,
-    personal_cards: Vec<Card>,
-    bets_placed: Vec<Option<u64>>, // indexed by seats
-    pot: u64,
-    players: Vec<Option<PlayerData>>,
-    small_blind: u64,
-    big_blind: u64,
-    dealer: usize
+    pub asker_seat: Option<usize>,
+    pub community_cards: Vec<Option<Card>>,
+    pub personal_cards: Vec<Card>,
+    pub bets_placed: Vec<Option<u64>>, // indexed by seats
+    pub pot: u64,
+    pub players: Vec<Option<PlayerData>>,
+    pub small_blind: u64,
+    pub big_blind: u64,
+    pub dealer: usize
 }
 
 pub type GamesManagerArc = Arc<RwLock<GamesManager>>;
