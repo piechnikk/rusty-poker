@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use serde::Serialize;
 use uuid::Uuid;
 use crate::poker::player::{Player, PlayerAction, PlayerData};
 use crate::poker::games_manager::{GameState};
@@ -8,7 +9,7 @@ use poker::{Evaluator, Eval, Card as EvaluatorCard, Rank as EvaluatorRank, Suit 
 
 #[derive(Clone)]
 pub struct Game {
-    players: HashMap<Uuid, usize>, // map player_id to his seat index
+    pub players: HashMap<Uuid, usize>, // map player_id to his seat index
     players_by_seats: Vec<Option<Player>>,
     pub small_blind: u64,
     pub big_blind: u64, // typically 2 * small_blind, but not always
@@ -498,7 +499,7 @@ impl <'a> Game {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Serialize)]
 pub enum Color {
     Hearts,
     Diamonds,
@@ -518,7 +519,7 @@ impl Color {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Serialize)]
 pub enum Rank {
     Two,
     Three,
@@ -556,7 +557,7 @@ impl Rank {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Serialize)]
 enum GamePhase {
     PreFlop, // every player has 2 cards, 0 community cards
     Flop, // first 3 community cards
@@ -564,7 +565,7 @@ enum GamePhase {
     River // 5th community card on the table
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Serialize)]
 pub struct Card {
     rank: Rank,
     color: Color

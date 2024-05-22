@@ -81,6 +81,7 @@ pub struct GameData {
     pub initial_balance: u64
 }
 
+#[derive(Serialize)]
 pub struct GameState {
     pub asker_seat: Option<usize>,
     pub community_cards: Vec<Option<Card>>,
