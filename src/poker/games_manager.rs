@@ -70,7 +70,8 @@ pub struct GameData {
 }
 
 pub struct GameState {
-    pub community_cards: Vec<Card>,
+    pub asker_seat: Option<usize>,
+    pub community_cards: Vec<Option<Card>>,
     pub personal_cards: Vec<Card>,
     pub bets_placed: Vec<Option<u64>>, // indexed by seats
     pub pot: u64,

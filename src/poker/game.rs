@@ -234,9 +234,14 @@ impl <'a> Game {
 
     pub fn collect_state_data(&self, player_id: Uuid) -> GameState {
         let player_seat = self.players.get(&player_id);
+        let mut community_cards: Vec<Option<Card>> = vec![None; 5];
+        for idx in 0..self.community_cards_shown {
+            community_cards[idx] = Some(self.community_cards[idx]);
+        }
 
         GameState{
-            community_cards: self.community_cards[0..self.community_cards_shown].to_vec(),
+            asker_seat: player_seat.copied(),
+            community_cards,
             personal_cards: match player_seat {
                 Some(player_index) => self.players_by_seats[*player_index].unwrap().cards.to_vec(),
                 None => vec![]
