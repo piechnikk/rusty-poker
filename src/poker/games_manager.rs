@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
 use serde::Serialize;
-use crate::poker::game::{Game, Card, Color, Rank};
-use crate::poker::player::{Player, PlayerData, PlayerState};
+use crate::poker::game::{Game, Card};
+use crate::poker::player::{PlayerData};
 use uuid::Uuid;
 
 // use crate::poker::player;
@@ -84,6 +84,7 @@ pub struct GameData {
 #[derive(Serialize)]
 pub struct GameState {
     pub asker_seat: Option<usize>,
+    pub active_seat: usize,
     pub community_cards: Vec<Option<Card>>,
     pub personal_cards: Vec<Card>,
     pub bets_placed: Vec<Option<u64>>, // indexed by seats

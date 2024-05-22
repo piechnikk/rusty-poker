@@ -242,6 +242,7 @@ impl <'a> Game {
 
         GameState{
             asker_seat: player_seat.copied(),
+            active_seat: self.active_player,
             community_cards,
             personal_cards: match player_seat {
                 Some(player_index) => self.players_by_seats[*player_index].unwrap().cards.to_vec(),
