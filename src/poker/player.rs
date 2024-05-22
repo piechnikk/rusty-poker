@@ -1,5 +1,5 @@
 use crate::poker::game::{Card, Color, Rank};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Copy)]
 pub struct Player {
@@ -139,7 +139,7 @@ pub enum PlayerState {
     Left, // when player left the game
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Deserialize, Clone, Copy)]
 pub enum PlayerAction {
     Check,
     Call,
