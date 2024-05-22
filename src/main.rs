@@ -3,12 +3,12 @@ mod poker {
     pub mod games_manager;
     pub mod player;
 }
-use std::sync::{Arc, RwLock};
 use poker::game::Card;
 use poker::game::Game;
 use poker::games_manager::GamesManager;
 use poker::games_manager::GamesManagerArc;
 use poker::player::Player;
+use std::sync::{Arc, RwLock};
 
 use actix_cors::Cors;
 use actix_session::{Session, SessionMiddleware};
@@ -82,7 +82,10 @@ async fn hello() -> impl Responder {
 }
 
 #[post("/create_game")]
-async fn create_game(data: web::Data<GamesManagerArc>, body: web::Json<CreateGame>) -> impl Responder {
+async fn create_game(
+    data: web::Data<GamesManagerArc>,
+    body: web::Json<CreateGame>,
+) -> impl Responder {
     let mut games_manager = data.write().unwrap();
     let new_game_id = games_manager.new_game(
         body.seats_count,
@@ -90,7 +93,7 @@ async fn create_game(data: web::Data<GamesManagerArc>, body: web::Json<CreateGam
         body.big_blind,
         body.initial_balance,
     );
-    
+
     let response = serde_json::json!({
         "message": "success",
         "game_id": new_game_id
@@ -112,16 +115,26 @@ async fn games(data: web::Data<GamesManagerArc>) -> impl Responder {
 }
 
 #[post("/join_game")]
-async fn join_game(data: web::Data<GamesManagerArc>, session: Session, body: web::Json<JoinGame>) -> impl Responder {
+async fn join_game(
+    data: web::Data<GamesManagerArc>,
+    session: Session,
+    body: web::Json<JoinGame>,
+) -> impl Responder {
     let mut games_manager = data.write().unwrap();
-    
+
     if let Ok(game) = games_manager.get_game_mut(body.game_id) {
         match game.join_game(body.chosen_seat, &body.player_name, body.appearance_type) {
-            Err(err) => return HttpResponse::Forbidden().json(serde_json::json!({"message": "error", "content": err})),
+            Err(err) => {
+                return HttpResponse::Forbidden()
+                    .json(serde_json::json!({"message": "error", "content": err}))
+            }
             Ok(user_id) => {
                 session.insert("joined", true).unwrap();
                 session.insert("player_id", user_id).unwrap();
-                return HttpResponse::Ok().json(serde_json::json!({"message": "success"}))
+
+                println!("{}", session.get::<Uuid>("player_id").unwrap().unwrap());
+                println!("{}", session.get::<bool>("joined").unwrap().unwrap());
+                return HttpResponse::Ok().json(serde_json::json!({"message": "success"}));
             }
         }
     } else {
@@ -130,7 +143,11 @@ async fn join_game(data: web::Data<GamesManagerArc>, session: Session, body: web
 }
 
 #[post("/set_ready")]
-async fn set_ready(data: web::Data<GamesManagerArc>, session: Session, body: web::Json<SetReady>) -> impl Responder {
+async fn set_ready(
+    data: web::Data<GamesManagerArc>,
+    session: Session,
+    body: web::Json<SetReady>,
+) -> impl Responder {
     if let Err(err) = check_joined(&session) {
         return err;
     }
@@ -141,7 +158,10 @@ async fn set_ready(data: web::Data<GamesManagerArc>, session: Session, body: web
 
     let mut games_manager = data.write().unwrap();
     if let Ok(game) = games_manager.get_game_mut(body.game_id) {
-        let _ = game.set_ready(session.get::<Uuid>("player_id").unwrap().unwrap(), body.new_ready_state);
+        let _ = game.set_ready(
+            session.get::<Uuid>("player_id").unwrap().unwrap(),
+            body.new_ready_state,
+        );
         response = serde_json::json!({
             "message": "success",
         });
@@ -151,7 +171,11 @@ async fn set_ready(data: web::Data<GamesManagerArc>, session: Session, body: web
 }
 
 #[get("/game_state")]
-async fn game_state(data: web::Data<GamesManagerArc>, session: Session, query: web::Query<GameId>) -> impl Responder {
+async fn game_state(
+    data: web::Data<GamesManagerArc>,
+    session: Session,
+    query: web::Query<GameId>,
+) -> impl Responder {
     let games_manager = data.write().unwrap();
 
     if let Err(_err) = check_joined(&session) {
@@ -187,19 +211,24 @@ async fn listen_changes(session: Session, query: web::Query<GameId>) -> impl Res
 }
 
 #[post("/perform_action")]
-async fn perform_action(data: web::Data<GamesManagerArc>, session: Session, body: web::Json<PerformAction>) -> impl Responder {
+async fn perform_action(
+    data: web::Data<GamesManagerArc>,
+    session: Session,
+    body: web::Json<PerformAction>,
+) -> impl Responder {
     if let Err(err) = check_joined(&session) {
         return err;
     }
     let mut games_manager = data.write().unwrap();
     if let Ok(game) = games_manager.get_game_mut(body.game_id) {
-        let player_index = game.players.get(&session.get::<Uuid>("player_id").unwrap().unwrap()).unwrap();
+        let player_index = game
+            .players
+            .get(&session.get::<Uuid>("player_id").unwrap().unwrap())
+            .unwrap();
         game.player_action(*player_index, body.action, body.bet.unwrap());
-        
     } else {
         return HttpResponse::Forbidden().json(serde_json::json!({"message": "error"}));
     }
-
 
     let response = serde_json::json!({
         "message": "success"
@@ -236,7 +265,14 @@ async fn main() -> std::io::Result<()> {
                 actix_session::storage::CookieSessionStore::default(),
                 secret_key.clone(),
             ))
-            .wrap(Cors::default().allow_any_origin().allow_any_method().allow_any_header().supports_credentials().max_age(3600))
+            .wrap(
+                Cors::default()
+                    .allow_any_origin()
+                    .allow_any_method()
+                    .allow_any_header()
+                    .supports_credentials()
+                    .max_age(3600),
+            )
             .service(hello)
             .service(create_game)
             .service(games)
