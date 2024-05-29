@@ -131,9 +131,6 @@ async fn join_game(
             Ok(user_id) => {
                 session.insert("joined", true).unwrap();
                 session.insert("player_id", user_id).unwrap();
-
-                println!("{}", session.get::<Uuid>("player_id").unwrap().unwrap());
-                println!("{}", session.get::<bool>("joined").unwrap().unwrap());
                 return HttpResponse::Ok().json(serde_json::json!({"message": "success"}));
             }
         }
@@ -158,10 +155,12 @@ async fn set_ready(
 
     let mut games_manager = data.write().unwrap();
     if let Ok(game) = games_manager.get_game_mut(body.game_id) {
-        let _ = game.set_ready(
+        println!("ddd");
+        let ok = game.set_ready(
             session.get::<Uuid>("player_id").unwrap().unwrap(),
             body.new_ready_state,
         );
+        println!("{:?}", ok);
         response = serde_json::json!({
             "message": "success",
         });
@@ -189,7 +188,7 @@ async fn game_state(
 
     let response = serde_json::json!({
         "message": "success",
-        "game_state": query.game_id
+        "game_state": games_manager.get_game_state(query.game_id, session.get::<Uuid>("player_id").unwrap().unwrap()).unwrap()
     });
 
     HttpResponse::Ok().json(response)
@@ -265,14 +264,7 @@ async fn main() -> std::io::Result<()> {
                 actix_session::storage::CookieSessionStore::default(),
                 secret_key.clone(),
             ))
-            .wrap(
-                Cors::default()
-                    .allow_any_origin()
-                    .allow_any_method()
-                    .allow_any_header()
-                    .supports_credentials()
-                    .max_age(3600),
-            )
+            .wrap(Cors::permissive())
             .service(hello)
             .service(create_game)
             .service(games)
