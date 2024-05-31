@@ -12,22 +12,21 @@ pub struct Game {
     pub players: HashMap<Uuid, usize>, // map player_id to his seat index
     players_by_seats: Vec<Option<Player>>,
     nicknames: Vec<Option<String>>,
+    pub max_players: usize,
     pub small_blind: u64,
     pub big_blind: u64, // typically 2 * small_blind, but not always
     pub initial_balance: u64,
     deck: [Card; 52],
-    community_cards: [Card; 5],
+    community_cards: [Option<Card>; 5],
     community_cards_shown: usize,
     dealer_seat: usize,
-    after_big_blind_seat: usize,
     active_player: usize,
-    pub max_players: usize,
     game_phase: GamePhase,
     evaluator: Evaluator
 }
 
-fn next_player(players_by_seats: &Vec<Option<Player>>, active_player: usize, max_players: usize) -> usize {
-    for seat in (active_player + 1)..max_players {
+fn next_player(players_by_seats: &Vec<Option<Player>>, start_from: usize, max_players: usize) -> usize {
+    for seat in (start_from + 1)..max_players {
         match players_by_seats[seat] {
             Some(_) => return seat,
             _ => ()
@@ -44,25 +43,7 @@ fn next_player(players_by_seats: &Vec<Option<Player>>, active_player: usize, max
     0
 }
 
-fn next_active_player(players_by_seats: &Vec<Option<Player>>, active_player: usize, max_players: usize) -> usize {
-    for seat in (active_player + 1)..max_players {
-        match players_by_seats[seat] {
-            Some(_) => return seat,
-            _ => ()
-        }
-    }
-
-    for seat in 0..max_players {
-        match players_by_seats[seat] {
-            Some(_) => return seat,
-            _ => ()
-        }
-    }
-
-    0
-}
-
-impl <'a> Game {
+impl Game {
     pub fn new_game(max_players: usize, small_blind: u64, big_blind: u64, initial_balance: u64) -> Game {
         let players: HashMap<Uuid, usize> = HashMap::with_capacity(max_players);
         let players_by_seats = vec![None; max_players];
@@ -121,13 +102,7 @@ impl <'a> Game {
             Card { color: Color::Clubs, rank: Rank::King },
             Card { color: Color::Clubs, rank: Rank::Ace }
         ];
-        let community_cards: [Card; 5] = [ // dummy values replaced later
-            Card { color: Color::Spades, rank: Rank::Two },
-            Card { color: Color::Spades, rank: Rank::Two },
-            Card { color: Color::Spades, rank: Rank::Two },
-            Card { color: Color::Spades, rank: Rank::Two },
-            Card { color: Color::Spades, rank: Rank::Two }
-        ];
+        let community_cards: [Option<Card>; 5] = [None, None, None, None, None];
         Game { 
             players, 
             small_blind, 
@@ -138,7 +113,6 @@ impl <'a> Game {
             community_cards_shown: 0,
             players_by_seats, 
             dealer_seat: 0,
-            after_big_blind_seat: 0,
             active_player: 0,
             max_players,
             game_phase: GamePhase::PreFlop,
@@ -185,12 +159,20 @@ impl <'a> Game {
         Ok(ready)
     }
 
-    pub fn player_action(&'a mut self, player_index: usize, action: PlayerAction, amount: u64) -> u8 {        
+    pub fn player_action(&mut self, player_index: usize, action: PlayerAction, amount: u64) -> u8 {        
+        if player_index != self.active_player {
+            return 0;
+        }
+
+        let max_bet = self.max_bet();
+        let player: &mut Player = self.players_by_seats[player_index].as_mut().unwrap();
         
-        let player = self.players_by_seats[player_index].as_mut().unwrap();
-        
-        let result = player.perform_action(action, amount);
-        
+        let result = match action {
+            PlayerAction::Call | PlayerAction::Check => player.perform_action(action, max_bet),
+            PlayerAction::Bet => player.perform_action(action, amount),
+            PlayerAction::AllIn | PlayerAction::Fold => player.perform_action(action, amount)
+        };
+
         match result {
             Err(_) => return 0,
             Ok(_) => ()
@@ -202,56 +184,34 @@ impl <'a> Game {
         if round_end {
             match self.game_phase {
                 GamePhase::PreFlop => {
-                    self.community_cards_shown = 3;
-                    for seat in 0..self.max_players {
-                        let _ = match &mut self.players_by_seats[seat] {
-                            Some(pl) => pl.collect_bet(),
-                            _ => Err("seat empty")
-                        };
-                    };
                     self.game_phase = GamePhase::Flop;
+                    self.set_players_active(false);
+                    self.community_cards_shown = 3;
+                    self.collect_bets();
                 },
                 GamePhase::Flop => {
-                    self.community_cards_shown = 4;
-                    for seat in 0..self.max_players {
-                        let _ = match &mut self.players_by_seats[seat] {
-                            Some(pl) => pl.collect_bet(),
-                            _ => Err("seat empty")
-                        };
-                    };
                     self.game_phase = GamePhase::Turn;
+                    self.set_players_active(false);
+                    self.community_cards_shown = 4;
+                    self.collect_bets();
                 },
                 GamePhase::Turn => {
-                    self.community_cards_shown = 5;
-                    for seat in 0..self.max_players {
-                        let _ = match &mut self.players_by_seats[seat] {
-                            Some(pl) => pl.collect_bet(),
-                            _ => Err("seat empty")
-                        };
-                    };
                     self.game_phase = GamePhase::River;
+                    self.set_players_active(false);
+                    self.community_cards_shown = 5;
+                    self.collect_bets();
                 },
                 GamePhase::River => {
-                    for seat in 0..self.max_players {
-                        let _ = match &mut self.players_by_seats[seat] {
-                            Some(pl) => pl.collect_bet(),
-                            _ => Err("seat empty")
-                        };
-                    };
-                    self.game_phase = GamePhase::PreFlop;
+                    self.collect_bets();
                     let winner_seat = self.get_winner_seat();
-                    let winnings: u64 = self.players_by_seats.iter().map(
-                        |opt_player| match opt_player {
-                            Some(player) => player.total_bet,
-                            None => 0
-                        }
-                    ).sum();
-                    self.players_by_seats[winner_seat].unwrap().collect_win(winnings);
-                    self.dealer_seat = self.active_player;
-                    self.start_round();
+                    self.distribute_winnings(winner_seat);
+                    self.game_phase = GamePhase::PreFlop;
+                    self.start_round(false);
                 },
             }
         }
+
+        println!("current round phase is {:?}", self.game_phase);
 
         1
 
@@ -260,23 +220,23 @@ impl <'a> Game {
 
     pub fn collect_state_data(&self, player_id: Uuid) -> GameState {
         let player_seat = self.players.get(&player_id);
-        let mut community_cards: Vec<Option<Card>> = vec![None; 5];
-        for idx in 0..self.community_cards_shown {
-            community_cards[idx] = Some(self.community_cards[idx]);
+        let mut cards_to_show = self.community_cards;
+        for idx in self.community_cards_shown..5 {
+            cards_to_show[idx] = None;
         }
 
         GameState{
             asker_seat: player_seat.copied(),
             active_seat: self.active_player,
-            community_cards,
+            community_cards: cards_to_show,
             personal_cards: match player_seat {
-                Some(player_index) => self.players_by_seats[*player_index].unwrap().cards.to_vec(),
-                None => vec![]
+                Some(player_index) => self.players_by_seats[*player_index].unwrap().cards.map(|card| Some(card)),
+                None => [None, None]
             },
             bets_placed: vec![None; self.max_players],
             pot: self.players_by_seats.iter().map(
                 |opt_player| match opt_player {
-                    Some(player) => player.current_bet,
+                    Some(player) => player.current_bet + player.total_bet,
                     None => 0
                 }
             ).sum(),
@@ -312,31 +272,24 @@ impl <'a> Game {
                 }
             }
         }
-        let mut first_taken_seat: usize = 0;
-        for (idx, player_id) in self.players_by_seats.iter().enumerate() {
-            match player_id {
-                Some(_) => first_taken_seat = idx,
-                _ => ()
-            }
-        }
-        self.dealer_seat = first_taken_seat;
 
-        self.start_round();
+        println!("game running, poker module version 1.0.0");
+
+        self.start_round(true);
 
         Ok(0)
     }
 
-    pub fn start_round(&mut self) {
+    pub fn start_round(&mut self, first_round: bool) {
         self.deal_cards();
-        self.active_player = self.dealer_seat;
-        
-        for player in self.players_by_seats.iter_mut() {
-            match player {
-                None => (),
-                Some(pl) => pl.state = PlayerState::Active
-            }
+        if first_round {
+            self.dealer_seat = self.first_taken_seat();
+        } else {
+            self.dealer_seat = next_player(&self.players_by_seats, self.dealer_seat, self.max_players);
         }
-
+        self.active_player = self.dealer_seat;
+        self.set_players_active(true);
+        self.reset_players();
         self.set_next_active_player();
 
         let message = self.player_action(
@@ -355,8 +308,6 @@ impl <'a> Game {
             _ => ()
         }
 
-        self.set_next_active_player();
-
         let message = self.player_action(
             self.active_player, 
             PlayerAction::Bet, 
@@ -372,8 +323,6 @@ impl <'a> Game {
             },
             _ => ()
         }
-
-        self.set_next_active_player();
     }
 
     pub fn set_next_active_player(&mut self) {
@@ -399,7 +348,61 @@ impl <'a> Game {
                 return;
             }
         }
+        println!("next active player {}", next_player_seat);
         self.active_player = next_player_seat;
+    }
+
+    fn set_players_active(&mut self, force: bool) {
+        for seat in 0..self.max_players {
+            if let Some(mut player) = self.players_by_seats[seat] {
+                let _ = player.set_active(force);
+            }
+        }
+    }
+
+    fn collect_bets(&mut self) {
+        for seat in 0..self.max_players {
+            let _ = match &mut self.players_by_seats[seat] {
+                Some(pl) => pl.collect_bet(),
+                _ => Err("seat empty")
+            };
+        };
+    }
+
+    fn distribute_winnings(&mut self, winner_seat: usize) {
+        let winnings: u64 = self.players_by_seats.iter().map(
+            |opt_player| match opt_player {
+                Some(player) => player.current_bet + player.total_bet,
+                None => 0
+            }
+        ).sum();
+        println!("winnings are {}, win seat is {}", winnings, winner_seat);
+        for seat in 0..self.max_players {
+            match &mut self.players_by_seats[seat] {
+                Some(pl) => if pl.seat_index == winner_seat as u8 { pl.collect_win(winnings) },
+                _ => ()
+            };
+        };
+    }
+
+    fn first_taken_seat(&self) -> usize {
+        let mut first_taken_seat: usize = 0;
+        for (idx, player) in self.players_by_seats.iter().enumerate() {
+            match player {
+                Some(_) => first_taken_seat = idx,
+                _ => ()
+            }
+        }
+        first_taken_seat
+    }
+
+    fn reset_players(&mut self) {
+        for seat in 0..self.max_players {
+            match &mut self.players_by_seats[seat] {
+                Some(pl) => pl.reset_for_next_round(),
+                _ => ()
+            };
+        };
     }
 
     pub fn get_next_active_player(&self) -> usize {
@@ -441,8 +444,8 @@ impl <'a> Game {
                 None => ()
             }
         }
-        for card_offset in 0..4 {
-            self.community_cards[next_card + card_offset] = self.deck[next_card + card_offset].clone();
+        for card_offset in 0..5 {
+            self.community_cards[card_offset] = Some(self.deck[next_card + card_offset].clone());
         }
     }
 
@@ -458,7 +461,7 @@ impl <'a> Game {
     fn get_winner_seat(&self) -> usize {
         let mut best_seat = 0;
         let mut best_seat_hand: Option<Eval> = None;
-        let community_cards = self.community_cards.map(|card| card.to_evaluate()).to_vec();
+        let community_cards = self.community_cards.map(|card| card.expect("some community cards are None").to_evaluate()).to_vec();
         for seat_id in 0..self.max_players {
             match self.players_by_seats[seat_id] {
                 None => (),
@@ -548,7 +551,7 @@ impl <'a> Game {
     }
 }
 
-#[derive(Clone, Copy, Serialize)]
+#[derive(Clone, Copy, Serialize, Debug)]
 pub enum Color {
     Hearts,
     Diamonds,
@@ -568,7 +571,7 @@ impl Color {
     }
 }
 
-#[derive(Clone, Copy, Serialize)]
+#[derive(Clone, Copy, Serialize, Debug)]
 pub enum Rank {
     Two,
     Three,
@@ -606,7 +609,7 @@ impl Rank {
     }
 }
 
-#[derive(Clone, Copy, Serialize)]
+#[derive(Clone, Copy, Serialize, Debug)]
 enum GamePhase {
     PreFlop, // every player has 2 cards, 0 community cards
     Flop, // first 3 community cards
@@ -614,7 +617,7 @@ enum GamePhase {
     River // 5th community card on the table
 }
 
-#[derive(Clone, Copy, Serialize)]
+#[derive(Clone, Copy, Serialize, Debug)]
 pub struct Card {
     rank: Rank,
     color: Color

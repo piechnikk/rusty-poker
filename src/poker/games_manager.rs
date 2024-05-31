@@ -85,8 +85,8 @@ pub struct GameData {
 pub struct GameState {
     pub asker_seat: Option<usize>,
     pub active_seat: usize,
-    pub community_cards: Vec<Option<Card>>,
-    pub personal_cards: Vec<Card>,
+    pub community_cards: [Option<Card>; 5],
+    pub personal_cards: [Option<Card>; 2],
     pub bets_placed: Vec<Option<u64>>, // indexed by seats
     pub pot: u64,
     pub players: Vec<Option<PlayerData>>,
