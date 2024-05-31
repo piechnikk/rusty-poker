@@ -167,6 +167,8 @@ impl Game {
         let max_bet = self.max_bet();
         let player: &mut Player = self.players_by_seats[player_index].as_mut().unwrap();
         
+        if amount + player.current_bet < max_bet { return 0; }
+
         let result = match action {
             PlayerAction::Call | PlayerAction::Check => player.perform_action(action, max_bet),
             PlayerAction::Bet => player.perform_action(action, amount),
