@@ -120,6 +120,10 @@ async fn join_game(
     session: Session,
     body: web::Json<JoinGame>,
 ) -> impl Responder {
+    if let Ok(_) = check_joined(&session) {
+        return HttpResponse::Forbidden().json(serde_json::json!({"message": "error"}));
+    }
+
     let mut games_manager = data.write().unwrap();
 
     if let Ok(game) = games_manager.get_game_mut(body.game_id) {
@@ -178,20 +182,34 @@ async fn game_state(
     let games_manager = data.write().unwrap();
 
     if let Err(_err) = check_joined(&session) {
-        let response = serde_json::json!({
-            "message": "success",
-            "game_state": games_manager.get_game_state(query.game_id, Uuid::new_v4()).unwrap()
-        });
+        let game_state = games_manager.get_game_state(query.game_id, Uuid::new_v4());
 
-        return HttpResponse::Ok().json(response);
+        match game_state {
+            Err(err) => {
+                return HttpResponse::Forbidden()
+                    .json(serde_json::json!({"message": "error", "content": err }))
+            }
+            Ok(game) => {
+                return HttpResponse::Ok()
+                    .json(serde_json::json!({"message": "success", "game_state": game}))
+            }
+        }
     }
+    let game_state = games_manager.get_game_state(
+        query.game_id,
+        session.get::<Uuid>("player_id").unwrap().unwrap(),
+    );
 
-    let response = serde_json::json!({
-        "message": "success",
-        "game_state": games_manager.get_game_state(query.game_id, session.get::<Uuid>("player_id").unwrap().unwrap()).unwrap()
-    });
-
-    HttpResponse::Ok().json(response)
+    match game_state {
+        Err(err) => {
+            return HttpResponse::Forbidden()
+                .json(serde_json::json!({"message": "error", "content": err }))
+        }
+        Ok(game) => {
+            return HttpResponse::Ok()
+                .json(serde_json::json!({"message": "success", "game_state": game}))
+        }
+    }
 }
 
 #[get("/listen_changes")]
