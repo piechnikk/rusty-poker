@@ -255,7 +255,7 @@ async fn perform_action(
 }
 
 #[post("/quit_game")]
-async fn quit_game(session: Session, _body: web::Json<GameId>) -> impl Responder {
+async fn quit_game(session: Session) -> impl Responder {
     if let Err(err) = check_joined(&session) {
         return err;
     }
