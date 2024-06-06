@@ -136,16 +136,16 @@ impl Player {
         Ok(self.balance)
     }
 
-    pub fn set_active(&mut self, force: bool) -> Result<u64, &str> {
+    pub fn set_active(mut self, force: bool) -> Self {
         match self.state {
-            PlayerState::Folded | PlayerState::Left => {
-                if !force { return Err("player is unable to be set as active"); }
+            PlayerState::Folded | PlayerState::Left | PlayerState::AllIn => {
+                if !force { return self; }
             },
             _ => ()
         };
         self.state = PlayerState::Active;
-        println!("setting player state at seat {} as active", self.seat_index);
-        Ok(0)
+        println!("setting player state at seat {} as active, {:?}", self.seat_index, self.state);
+        self
     }
 
     pub fn collect_bet(&mut self) -> Result<u64, &str> {

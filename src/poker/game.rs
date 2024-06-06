@@ -184,7 +184,7 @@ impl Game {
         }
         
         let round_end = self.round_end();
-        self.set_next_active_player();
+        if !round_end { self.set_next_active_player(); }
 
         if round_end {
             match self.game_phase {
@@ -211,6 +211,7 @@ impl Game {
                     let winner_seat = self.get_winner_seat();
                     self.distribute_winnings(winner_seat);
                     self.game_phase = GamePhase::PreFlop;
+                    self.community_cards_shown = 0;
                     self.start_round(false);
                 },
             }
@@ -291,7 +292,7 @@ impl Game {
     pub fn start_round(&mut self, first_round: bool) {
         if self.someone_won() {
             self.game_state = GamePlayState::Ended;
-            self.purge_players();
+            // self.purge_players();
             return;
         }
 
@@ -364,17 +365,24 @@ impl Game {
         }
         println!("next active player {}", next_player_seat);
         self.active_player = next_player_seat;
+        if self.players_by_seats[self.active_player].unwrap().state == PlayerState::AllIn {
+            self.player_action(self.active_player, PlayerAction::AllIn, 0);
+        }
     }
 
     fn set_players_active(&mut self, force: bool) {
-        for seat in 0..self.max_players {
-            if let Some(mut player) = self.players_by_seats[seat] {
-                println!("setting player {} as active", player.seat_index);
-                let _ = player.set_active(force);
-                println!("player state {:?}", player.state);
-            }
+        for seat in self.players.values() {
+            println!("player state {:?}", self.players_by_seats[*seat].unwrap().state);
+            let player = self.players_by_seats[*seat].unwrap();
+            self.players_by_seats[*seat] = Some(player.set_active(force));
+            println!("player {} state {:?}", player.seat_index, self.players_by_seats[*seat].unwrap().state);
+            // if let Some(mut player) = self.players_by_seats[seat] {
+            //     println!("setting player {} as active", player.seat_index);
+            //     let _ = player.set_active(force);
+            //     println!("player state {:?}", player.state);
+            // }
             
-            if let Some(player) = self.players_by_seats[seat] {println!("player state {:?}", player.state);}
+            // if let Some(player) = self.players_by_seats[*seat] {println!("player state2 {:?}", player.state);}
         }
     }
 
@@ -405,15 +413,17 @@ impl Game {
 
     fn someone_won(&self) -> bool {
         let mut non_zero_balance: u8 = 0;
-
+        println!("checking if someone won");
         for seat in 0..self.max_players {
+            println!("checking if someone won, seat {}", seat);
             match self.players_by_seats[seat] {
-                Some(pl) => if pl.balance == 0 { non_zero_balance += 1; println!("found {} non-zero balance", pl.seat_index); },
+                Some(pl) => if pl.balance > 0 { non_zero_balance += 1; println!("found {} non-zero balance", pl.seat_index); },
                 _ => ()
             };
-        };        
+        };  
+        println!("checking if someone won, status {}", non_zero_balance <= 2);
 
-        non_zero_balance > 2
+        non_zero_balance <= 2
     }
 
     fn purge_players(&mut self) {
