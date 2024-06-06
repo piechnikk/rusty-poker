@@ -16,6 +16,7 @@ pub struct Game {
     pub small_blind: u64,
     pub big_blind: u64, // typically 2 * small_blind, but not always
     pub initial_balance: u64,
+    pub game_state: GamePlayState,
     deck: [Card; 52],
     community_cards: [Option<Card>; 5],
     community_cards_shown: usize,
@@ -107,7 +108,8 @@ impl Game {
             players, 
             small_blind, 
             big_blind, 
-            initial_balance, 
+            initial_balance,
+            game_state: GamePlayState::NotStarted,
             deck, 
             community_cards,
             community_cards_shown: 0,
@@ -131,6 +133,9 @@ impl Game {
             Some(_) => return Err("seat already taken"),
             _ => ()
         }
+        if self.game_state != GamePlayState::NotStarted {
+            return Err("game already started or ended");
+        }
         let player_id = Uuid::new_v4();
         let player = Player::new_player(seat_index, self.initial_balance, appearance_type);
         self.players.insert(player_id, seat_index as usize);
@@ -146,6 +151,10 @@ impl Game {
     }
 
     pub fn set_ready(&mut self, player_index: usize, ready: bool) -> Result<bool, &str> {
+        if self.game_state != GamePlayState::NotStarted {
+            return Err("game already started or ended");
+        }
+
         let player: &mut Player = self.players_by_seats[player_index].as_mut().unwrap();
         player.set_ready(ready);
         let _ = self.start_game();
@@ -226,8 +235,8 @@ impl Game {
             active_seat: self.active_player,
             community_cards: cards_to_show,
             personal_cards: match player_seat {
-                Some(player_index)  => self.players_by_seats[*player_index].unwrap().cards.map(|card| Some(card)),
-                None => [None, None]
+                Some(player_index) if self.game_state == GamePlayState::Started => self.players_by_seats[*player_index].unwrap().cards.map(|card| Some(card)),
+                None | Some(_) => [None, None]
             },
             bets_placed: vec![None; self.max_players],
             pot: self.players_by_seats.iter().map(
@@ -238,6 +247,7 @@ impl Game {
             ).sum(),
             small_blind: self.small_blind,
             big_blind: self.big_blind,
+            game_state: self.game_state,
             dealer: self.dealer_seat,
             players: self.players_by_seats.iter().map(
                 |opt_player| match opt_player {
@@ -271,12 +281,20 @@ impl Game {
 
         println!("game running, poker module version 1.0.0");
 
+        self.game_state = GamePlayState::Started;
+
         self.start_round(true);
 
         Ok(0)
     }
 
     pub fn start_round(&mut self, first_round: bool) {
+        if self.someone_won() {
+            self.game_state = GamePlayState::Ended;
+            self.purge_players();
+            return;
+        }
+
         self.deal_cards();
         if first_round {
             self.dealer_seat = self.first_taken_seat();
@@ -353,7 +371,10 @@ impl Game {
             if let Some(mut player) = self.players_by_seats[seat] {
                 println!("setting player {} as active", player.seat_index);
                 let _ = player.set_active(force);
+                println!("player state {:?}", player.state);
             }
+            
+            if let Some(player) = self.players_by_seats[seat] {println!("player state {:?}", player.state);}
         }
     }
 
@@ -380,6 +401,26 @@ impl Game {
                 _ => ()
             };
         };
+    }
+
+    fn someone_won(&self) -> bool {
+        let mut non_zero_balance: u8 = 0;
+
+        for seat in 0..self.max_players {
+            match self.players_by_seats[seat] {
+                Some(pl) => if pl.balance == 0 { non_zero_balance += 1; println!("found {} non-zero balance", pl.seat_index); },
+                _ => ()
+            };
+        };        
+
+        non_zero_balance > 2
+    }
+
+    fn purge_players(&mut self) {
+        for seat in 0..self.max_players {
+            self.players_by_seats[seat] = None;
+            self.players.clear();
+        };    
     }
 
     fn first_taken_seat(&self) -> usize {
@@ -628,4 +669,11 @@ impl Card {
     pub fn to_evaluate(&self) -> EvaluatorCard {
         EvaluatorCard::new(self.rank.to_evaluate(), self.color.to_evaluate())
     }
+}
+
+#[derive(Clone, Copy, Serialize, Debug, PartialEq)]
+pub enum GamePlayState {
+    NotStarted,
+    Started,
+    Ended
 }

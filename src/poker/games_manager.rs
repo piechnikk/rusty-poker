@@ -9,6 +9,8 @@ use uuid::Uuid;
 
 use std::sync::{RwLock, Arc};
 
+use super::game::GamePlayState;
+
 #[derive(Clone)]
 pub struct GamesManager {
     games: HashMap<Uuid, Game>
@@ -53,7 +55,8 @@ impl GamesManager {
                 seats_occupied: game.players_count(),
                 small_blind: game.small_blind,
                 big_blind: game.big_blind,
-                initial_balance: game.initial_balance
+                initial_balance: game.initial_balance,
+                game_state: game.game_state
             };
             all_games_data.push(game_data);
         }
@@ -78,7 +81,8 @@ pub struct GameData {
     pub seats_occupied: u8,
     pub small_blind: u64,
     pub big_blind: u64,
-    pub initial_balance: u64
+    pub initial_balance: u64,
+    pub game_state: GamePlayState
 }
 
 #[derive(Serialize)]
@@ -92,6 +96,7 @@ pub struct GameState {
     pub players: Vec<Option<PlayerData>>,
     pub small_blind: u64,
     pub big_blind: u64,
+    pub game_state: GamePlayState,
     pub dealer: usize
 }
 
