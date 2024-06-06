@@ -10,7 +10,7 @@ use poker::{Evaluator, Eval, Card as EvaluatorCard, Rank as EvaluatorRank, Suit 
 #[derive(Clone)]
 pub struct Game {
     pub players: HashMap<Uuid, usize>, // map player_id to his seat index
-    players_by_seats: Vec<Option<Player>>,
+    pub players_by_seats: Vec<Option<Player>>,
     nicknames: Vec<Option<String>>,
     pub max_players: usize,
     pub small_blind: u64,
@@ -112,8 +112,8 @@ impl Game {
             community_cards,
             community_cards_shown: 0,
             players_by_seats, 
-            dealer_seat: 0,
-            active_player: 0,
+            dealer_seat: 69,
+            active_player: 69,
             max_players,
             game_phase: GamePhase::PreFlop,
             evaluator: Evaluator::new(),
@@ -145,15 +145,9 @@ impl Game {
         Ok(player_id)
     }
 
-    pub fn set_ready(&mut self, player_id: Uuid, ready: bool) -> Result<bool, &str> {
-        let player_seat = self.players.get(&player_id);
-        match player_seat {
-            None => return Err("player not found"),
-            Some(player_seat_idx) => {
-                self.players_by_seats[*player_seat_idx].unwrap().set_ready(ready);
-            }
-        }
-
+    pub fn set_ready(&mut self, player_index: usize, ready: bool) -> Result<bool, &str> {
+        let player: &mut Player = self.players_by_seats[player_index].as_mut().unwrap();
+        player.set_ready(ready);
         let _ = self.start_game();
 
         Ok(ready)
@@ -232,7 +226,7 @@ impl Game {
             active_seat: self.active_player,
             community_cards: cards_to_show,
             personal_cards: match player_seat {
-                Some(player_index) => self.players_by_seats[*player_index].unwrap().cards.map(|card| Some(card)),
+                Some(player_index)  => self.players_by_seats[*player_index].unwrap().cards.map(|card| Some(card)),
                 None => [None, None]
             },
             bets_placed: vec![None; self.max_players],
@@ -357,6 +351,7 @@ impl Game {
     fn set_players_active(&mut self, force: bool) {
         for seat in 0..self.max_players {
             if let Some(mut player) = self.players_by_seats[seat] {
+                println!("setting player {} as active", player.seat_index);
                 let _ = player.set_active(force);
             }
         }

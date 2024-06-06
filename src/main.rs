@@ -159,12 +159,16 @@ async fn set_ready(
 
     let mut games_manager = data.write().unwrap();
     if let Ok(game) = games_manager.get_game_mut(body.game_id) {
-        println!("ddd");
+        let player_index = game
+            .players
+            .get(&session.get::<Uuid>("player_id").unwrap().unwrap())
+            .unwrap();
+        println!("ddd {} {}", *player_index, body.new_ready_state);
         let ok = game.set_ready(
-            session.get::<Uuid>("player_id").unwrap().unwrap(),
+            *player_index,
             body.new_ready_state,
         );
-        println!("{:?}", ok);
+        // println!("{:?} {:?}", ok, game.players_by_seats[*player_index].unwrap().state);
         response = serde_json::json!({
             "message": "success",
         });

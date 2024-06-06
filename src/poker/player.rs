@@ -24,7 +24,7 @@ impl Player {
             balance,
             current_bet: 0,
             total_bet: 0,
-            state: PlayerState::Ready,
+            state: PlayerState::NotReady,
             appearance_type,
             cards,
         }
@@ -32,11 +32,10 @@ impl Player {
 
     pub fn set_ready(&mut self, ready: bool) {
         if ready {
-            self.state = PlayerState::Ready
+            self.state = PlayerState::Ready;
         } else {
-            self.state = PlayerState::NotReady
+            self.state = PlayerState::NotReady;
         }
-        println!("player at seat {} is {}", self.seat_index, if self.state == PlayerState::Ready {"ready"} else {"not ready"});
     }
 
     pub fn perform_action(&mut self, action: PlayerAction, amount: u64) -> Result<u64, &str> {
