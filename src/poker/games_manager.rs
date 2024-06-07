@@ -97,7 +97,9 @@ pub struct GameState {
     pub small_blind: u64,
     pub big_blind: u64,
     pub game_state: GamePlayState,
-    pub dealer: usize
+    pub dealer_seat: usize,
+    pub small_blind_seat: usize,
+    pub big_blind_seat: usize
 }
 
 pub type GamesManagerArc = Arc<RwLock<GamesManager>>;

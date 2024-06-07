@@ -21,6 +21,8 @@ pub struct Game {
     community_cards: [Option<Card>; 5],
     community_cards_shown: usize,
     dealer_seat: usize,
+    small_blind_seat: usize,
+    big_blind_seat: usize,
     active_player: usize,
     game_phase: GamePhase,
     evaluator: Evaluator
@@ -115,7 +117,9 @@ impl Game {
             community_cards_shown: 0,
             players_by_seats, 
             dealer_seat: 69,
-            active_player: 69,
+            small_blind_seat: 420,
+            big_blind_seat: 2137,
+            active_player: 666,
             max_players,
             game_phase: GamePhase::PreFlop,
             evaluator: Evaluator::new(),
@@ -170,7 +174,7 @@ impl Game {
         let max_bet = self.max_bet();
         let player: &mut Player = self.players_by_seats[player_index].as_mut().unwrap();
         
-        if amount + player.current_bet < max_bet { return 0; }
+        if amount + player.current_bet < max_bet || (player.state == PlayerState::AllIn && action != PlayerAction::AllIn) { return 0; }
 
         let result = match action {
             PlayerAction::Call | PlayerAction::Check => player.perform_action(action, max_bet),
@@ -183,10 +187,12 @@ impl Game {
             Ok(_) => ()
         }
         
-        let round_end = self.round_end();
-        if !round_end { self.set_next_active_player(); }
-
-        if round_end {
+        if !self.round_end() {
+            println!("round not ended");
+            self.set_next_active_player(); 
+        } else {
+            self.active_player = self.dealer_seat;
+            self.set_next_active_player();
             match self.game_phase {
                 GamePhase::PreFlop => {
                     self.game_phase = GamePhase::Flop;
@@ -249,7 +255,9 @@ impl Game {
             small_blind: self.small_blind,
             big_blind: self.big_blind,
             game_state: self.game_state,
-            dealer: self.dealer_seat,
+            dealer_seat: self.dealer_seat,
+            small_blind_seat: self.small_blind_seat,
+            big_blind_seat: self.big_blind_seat,
             players: self.players_by_seats.iter().map(
                 |opt_player| match opt_player {
                     Some(player) => Some(
@@ -307,6 +315,8 @@ impl Game {
         self.reset_players();
         self.set_next_active_player();
 
+        self.small_blind_seat = self.active_player;
+
         let message = self.player_action(
             self.active_player, 
             PlayerAction::Bet, 
@@ -322,6 +332,8 @@ impl Game {
             },
             _ => ()
         }
+
+        self.big_blind_seat = self.active_player;
 
         let message = self.player_action(
             self.active_player, 
@@ -365,9 +377,9 @@ impl Game {
         }
         println!("next active player {}", next_player_seat);
         self.active_player = next_player_seat;
-        if self.players_by_seats[self.active_player].unwrap().state == PlayerState::AllIn {
-            self.player_action(self.active_player, PlayerAction::AllIn, 0);
-        }
+        // if self.players_by_seats[self.active_player].unwrap().state == PlayerState::AllIn {
+        //     self.player_action(self.active_player, PlayerAction::AllIn, 0);
+        // }
     }
 
     fn set_players_active(&mut self, force: bool) {
@@ -434,14 +446,13 @@ impl Game {
     }
 
     fn first_taken_seat(&self) -> usize {
-        let mut first_taken_seat: usize = 0;
-        for (idx, player) in self.players_by_seats.iter().enumerate() {
-            match player {
-                Some(_) => first_taken_seat = idx,
+        for seat in 0..self.max_players {
+            match self.players_by_seats[seat] {
+                Some(_) => return seat,
                 _ => ()
-            }
+            };
         }
-        first_taken_seat
+        0
     }
 
     fn reset_players(&mut self) {
