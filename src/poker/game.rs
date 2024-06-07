@@ -1,11 +1,13 @@
-use std::collections::HashMap;
-use serde::Serialize;
-use uuid::Uuid;
-use crate::poker::player::{Player, PlayerAction, PlayerData};
-use crate::poker::games_manager::{GameState};
-use rand::{thread_rng, Rng};
 use super::player::PlayerState;
-use poker::{Evaluator, Eval, Card as EvaluatorCard, Rank as EvaluatorRank, Suit as EvaluatorColor};
+use crate::poker::games_manager::GameState;
+use crate::poker::player::{Player, PlayerAction, PlayerData};
+use poker::{
+    Card as EvaluatorCard, Eval, Evaluator, Rank as EvaluatorRank, Suit as EvaluatorColor,
+};
+use rand::{thread_rng, Rng};
+use serde::Serialize;
+use std::collections::HashMap;
+use uuid::Uuid;
 
 #[derive(Clone)]
 pub struct Game {
@@ -25,21 +27,25 @@ pub struct Game {
     big_blind_seat: usize,
     active_player: usize,
     game_phase: GamePhase,
-    evaluator: Evaluator
+    evaluator: Evaluator,
 }
 
-fn next_player(players_by_seats: &Vec<Option<Player>>, start_from: usize, max_players: usize) -> usize {
+fn next_player(
+    players_by_seats: &Vec<Option<Player>>,
+    start_from: usize,
+    max_players: usize,
+) -> usize {
     for seat in (start_from + 1)..max_players {
         match players_by_seats[seat] {
             Some(_) => return seat,
-            _ => ()
+            _ => (),
         }
     }
 
     for seat in 0..max_players {
         match players_by_seats[seat] {
             Some(_) => return seat,
-            _ => ()
+            _ => (),
         }
     }
 
@@ -47,75 +53,236 @@ fn next_player(players_by_seats: &Vec<Option<Player>>, start_from: usize, max_pl
 }
 
 impl Game {
-    pub fn new_game(max_players: usize, small_blind: u64, big_blind: u64, initial_balance: u64) -> Game {
+    pub fn new_game(
+        max_players: usize,
+        small_blind: u64,
+        big_blind: u64,
+        initial_balance: u64,
+    ) -> Game {
         let players: HashMap<Uuid, usize> = HashMap::with_capacity(max_players);
         let players_by_seats = vec![None; max_players];
         let nicknames = vec![None; max_players];
         let deck: [Card; 52] = [
-            Card { color: Color::Spades, rank: Rank::Two },
-            Card { color: Color::Spades, rank: Rank::Three },
-            Card { color: Color::Spades, rank: Rank::Four },
-            Card { color: Color::Spades, rank: Rank::Five },
-            Card { color: Color::Spades, rank: Rank::Six },
-            Card { color: Color::Spades, rank: Rank::Seven },
-            Card { color: Color::Spades, rank: Rank::Eight },
-            Card { color: Color::Spades, rank: Rank::Nine },
-            Card { color: Color::Spades, rank: Rank::Ten },
-            Card { color: Color::Spades, rank: Rank::Jack },
-            Card { color: Color::Spades, rank: Rank::Queen },
-            Card { color: Color::Spades, rank: Rank::King },
-            Card { color: Color::Spades, rank: Rank::Ace },
-            Card { color: Color::Hearts, rank: Rank::Two },
-            Card { color: Color::Hearts, rank: Rank::Three },
-            Card { color: Color::Hearts, rank: Rank::Four },
-            Card { color: Color::Hearts, rank: Rank::Five },
-            Card { color: Color::Hearts, rank: Rank::Six },
-            Card { color: Color::Hearts, rank: Rank::Seven },
-            Card { color: Color::Hearts, rank: Rank::Eight },
-            Card { color: Color::Hearts, rank: Rank::Nine },
-            Card { color: Color::Hearts, rank: Rank::Ten },
-            Card { color: Color::Hearts, rank: Rank::Jack },
-            Card { color: Color::Hearts, rank: Rank::Queen },
-            Card { color: Color::Hearts, rank: Rank::King },
-            Card { color: Color::Hearts, rank: Rank::Ace },
-            Card { color: Color::Diamonds, rank: Rank::Two },
-            Card { color: Color::Diamonds, rank: Rank::Three },
-            Card { color: Color::Diamonds, rank: Rank::Four },
-            Card { color: Color::Diamonds, rank: Rank::Five },
-            Card { color: Color::Diamonds, rank: Rank::Six },
-            Card { color: Color::Diamonds, rank: Rank::Seven },
-            Card { color: Color::Diamonds, rank: Rank::Eight },
-            Card { color: Color::Diamonds, rank: Rank::Nine },
-            Card { color: Color::Diamonds, rank: Rank::Ten },
-            Card { color: Color::Diamonds, rank: Rank::Jack },
-            Card { color: Color::Diamonds, rank: Rank::Queen },
-            Card { color: Color::Diamonds, rank: Rank::King },
-            Card { color: Color::Diamonds, rank: Rank::Ace },
-            Card { color: Color::Clubs, rank: Rank::Two },
-            Card { color: Color::Clubs, rank: Rank::Three },
-            Card { color: Color::Clubs, rank: Rank::Four },
-            Card { color: Color::Clubs, rank: Rank::Five },
-            Card { color: Color::Clubs, rank: Rank::Six },
-            Card { color: Color::Clubs, rank: Rank::Seven },
-            Card { color: Color::Clubs, rank: Rank::Eight },
-            Card { color: Color::Clubs, rank: Rank::Nine },
-            Card { color: Color::Clubs, rank: Rank::Ten },
-            Card { color: Color::Clubs, rank: Rank::Jack },
-            Card { color: Color::Clubs, rank: Rank::Queen },
-            Card { color: Color::Clubs, rank: Rank::King },
-            Card { color: Color::Clubs, rank: Rank::Ace }
+            Card {
+                color: Color::Spades,
+                rank: Rank::Two,
+            },
+            Card {
+                color: Color::Spades,
+                rank: Rank::Three,
+            },
+            Card {
+                color: Color::Spades,
+                rank: Rank::Four,
+            },
+            Card {
+                color: Color::Spades,
+                rank: Rank::Five,
+            },
+            Card {
+                color: Color::Spades,
+                rank: Rank::Six,
+            },
+            Card {
+                color: Color::Spades,
+                rank: Rank::Seven,
+            },
+            Card {
+                color: Color::Spades,
+                rank: Rank::Eight,
+            },
+            Card {
+                color: Color::Spades,
+                rank: Rank::Nine,
+            },
+            Card {
+                color: Color::Spades,
+                rank: Rank::Ten,
+            },
+            Card {
+                color: Color::Spades,
+                rank: Rank::Jack,
+            },
+            Card {
+                color: Color::Spades,
+                rank: Rank::Queen,
+            },
+            Card {
+                color: Color::Spades,
+                rank: Rank::King,
+            },
+            Card {
+                color: Color::Spades,
+                rank: Rank::Ace,
+            },
+            Card {
+                color: Color::Hearts,
+                rank: Rank::Two,
+            },
+            Card {
+                color: Color::Hearts,
+                rank: Rank::Three,
+            },
+            Card {
+                color: Color::Hearts,
+                rank: Rank::Four,
+            },
+            Card {
+                color: Color::Hearts,
+                rank: Rank::Five,
+            },
+            Card {
+                color: Color::Hearts,
+                rank: Rank::Six,
+            },
+            Card {
+                color: Color::Hearts,
+                rank: Rank::Seven,
+            },
+            Card {
+                color: Color::Hearts,
+                rank: Rank::Eight,
+            },
+            Card {
+                color: Color::Hearts,
+                rank: Rank::Nine,
+            },
+            Card {
+                color: Color::Hearts,
+                rank: Rank::Ten,
+            },
+            Card {
+                color: Color::Hearts,
+                rank: Rank::Jack,
+            },
+            Card {
+                color: Color::Hearts,
+                rank: Rank::Queen,
+            },
+            Card {
+                color: Color::Hearts,
+                rank: Rank::King,
+            },
+            Card {
+                color: Color::Hearts,
+                rank: Rank::Ace,
+            },
+            Card {
+                color: Color::Diamonds,
+                rank: Rank::Two,
+            },
+            Card {
+                color: Color::Diamonds,
+                rank: Rank::Three,
+            },
+            Card {
+                color: Color::Diamonds,
+                rank: Rank::Four,
+            },
+            Card {
+                color: Color::Diamonds,
+                rank: Rank::Five,
+            },
+            Card {
+                color: Color::Diamonds,
+                rank: Rank::Six,
+            },
+            Card {
+                color: Color::Diamonds,
+                rank: Rank::Seven,
+            },
+            Card {
+                color: Color::Diamonds,
+                rank: Rank::Eight,
+            },
+            Card {
+                color: Color::Diamonds,
+                rank: Rank::Nine,
+            },
+            Card {
+                color: Color::Diamonds,
+                rank: Rank::Ten,
+            },
+            Card {
+                color: Color::Diamonds,
+                rank: Rank::Jack,
+            },
+            Card {
+                color: Color::Diamonds,
+                rank: Rank::Queen,
+            },
+            Card {
+                color: Color::Diamonds,
+                rank: Rank::King,
+            },
+            Card {
+                color: Color::Diamonds,
+                rank: Rank::Ace,
+            },
+            Card {
+                color: Color::Clubs,
+                rank: Rank::Two,
+            },
+            Card {
+                color: Color::Clubs,
+                rank: Rank::Three,
+            },
+            Card {
+                color: Color::Clubs,
+                rank: Rank::Four,
+            },
+            Card {
+                color: Color::Clubs,
+                rank: Rank::Five,
+            },
+            Card {
+                color: Color::Clubs,
+                rank: Rank::Six,
+            },
+            Card {
+                color: Color::Clubs,
+                rank: Rank::Seven,
+            },
+            Card {
+                color: Color::Clubs,
+                rank: Rank::Eight,
+            },
+            Card {
+                color: Color::Clubs,
+                rank: Rank::Nine,
+            },
+            Card {
+                color: Color::Clubs,
+                rank: Rank::Ten,
+            },
+            Card {
+                color: Color::Clubs,
+                rank: Rank::Jack,
+            },
+            Card {
+                color: Color::Clubs,
+                rank: Rank::Queen,
+            },
+            Card {
+                color: Color::Clubs,
+                rank: Rank::King,
+            },
+            Card {
+                color: Color::Clubs,
+                rank: Rank::Ace,
+            },
         ];
         let community_cards: [Option<Card>; 5] = [None, None, None, None, None];
-        Game { 
-            players, 
-            small_blind, 
-            big_blind, 
+        Game {
+            players,
+            small_blind,
+            big_blind,
             initial_balance,
             game_state: GamePlayState::NotStarted,
-            deck, 
+            deck,
             community_cards,
             community_cards_shown: 0,
-            players_by_seats, 
+            players_by_seats,
             dealer_seat: 69,
             small_blind_seat: 420,
             big_blind_seat: 2137,
@@ -123,7 +290,7 @@ impl Game {
             max_players,
             game_phase: GamePhase::PreFlop,
             evaluator: Evaluator::new(),
-            nicknames
+            nicknames,
         }
     }
 
@@ -131,11 +298,11 @@ impl Game {
         &mut self,
         seat_index: u8,
         nickname: &str,
-        appearance_type: u8
+        appearance_type: u8,
     ) -> Result<Uuid, &str> {
         match self.players_by_seats[seat_index as usize] {
             Some(_) => return Err("seat already taken"),
-            _ => ()
+            _ => (),
         }
         if self.game_state != GamePlayState::NotStarted {
             return Err("game already started or ended");
@@ -166,30 +333,34 @@ impl Game {
         Ok(ready)
     }
 
-    pub fn player_action(&mut self, player_index: usize, action: PlayerAction, amount: u64) -> u8 {        
+    pub fn player_action(&mut self, player_index: usize, action: PlayerAction, amount: u64) -> u8 {
         if player_index != self.active_player {
             return 0;
         }
 
         let max_bet = self.max_bet();
         let player: &mut Player = self.players_by_seats[player_index].as_mut().unwrap();
-        
-        if amount + player.current_bet < max_bet || (player.state == PlayerState::AllIn && action != PlayerAction::AllIn) { return 0; }
+
+        if (amount + player.current_bet < max_bet && action == PlayerAction::Bet)
+            || (player.state == PlayerState::AllIn && action != PlayerAction::AllIn)
+        {
+            return 0;
+        }
 
         let result = match action {
             PlayerAction::Call | PlayerAction::Check => player.perform_action(action, max_bet),
             PlayerAction::Bet => player.perform_action(action, amount),
-            PlayerAction::AllIn | PlayerAction::Fold => player.perform_action(action, amount)
+            PlayerAction::AllIn | PlayerAction::Fold => player.perform_action(action, amount),
         };
 
         match result {
             Err(_) => return 0,
-            Ok(_) => ()
+            Ok(_) => (),
         }
-        
+
         if !self.round_end() {
             println!("round not ended");
-            self.set_next_active_player(); 
+            self.set_next_active_player();
         } else {
             self.active_player = self.dealer_seat;
             self.set_next_active_player();
@@ -199,19 +370,19 @@ impl Game {
                     self.set_players_active(false);
                     self.community_cards_shown = 3;
                     self.collect_bets();
-                },
+                }
                 GamePhase::Flop => {
                     self.game_phase = GamePhase::Turn;
                     self.set_players_active(false);
                     self.community_cards_shown = 4;
                     self.collect_bets();
-                },
+                }
                 GamePhase::Turn => {
                     self.game_phase = GamePhase::River;
                     self.set_players_active(false);
                     self.community_cards_shown = 5;
                     self.collect_bets();
-                },
+                }
                 GamePhase::River => {
                     self.collect_bets();
                     let winner_seat = self.get_winner_seat();
@@ -219,7 +390,7 @@ impl Game {
                     self.game_phase = GamePhase::PreFlop;
                     self.community_cards_shown = 0;
                     self.start_round(false);
-                },
+                }
             }
         }
 
@@ -237,41 +408,50 @@ impl Game {
             cards_to_show[idx] = None;
         }
 
-        GameState{
+        GameState {
             asker_seat: player_seat.copied(),
             active_seat: self.active_player,
             community_cards: cards_to_show,
             personal_cards: match player_seat {
-                Some(player_index) if self.game_state == GamePlayState::Started => self.players_by_seats[*player_index].unwrap().cards.map(|card| Some(card)),
-                None | Some(_) => [None, None]
+                Some(player_index) if self.game_state == GamePlayState::Started => self
+                    .players_by_seats[*player_index]
+                    .unwrap()
+                    .cards
+                    .map(|card| Some(card)),
+                None | Some(_) => [None, None],
             },
             bets_placed: vec![None; self.max_players],
-            pot: self.players_by_seats.iter().map(
-                |opt_player| match opt_player {
+            pot: self
+                .players_by_seats
+                .iter()
+                .map(|opt_player| match opt_player {
                     Some(player) => player.current_bet + player.total_bet,
-                    None => 0
-                }
-            ).sum(),
+                    None => 0,
+                })
+                .sum(),
             small_blind: self.small_blind,
             big_blind: self.big_blind,
             game_state: self.game_state,
             dealer_seat: self.dealer_seat,
             small_blind_seat: self.small_blind_seat,
             big_blind_seat: self.big_blind_seat,
-            players: self.players_by_seats.iter().map(
-                |opt_player| match opt_player {
-                    Some(player) => Some(
-                        PlayerData{
-                            seat_index: player.seat_index, 
-                            balance: player.balance, 
-                            state: player.state, 
-                            bet_amount: player.current_bet, 
-                            nickname: self.nicknames[player.seat_index as usize].as_ref().unwrap().to_string()
-                        }
-                    ),
-                    None => None
-                }
-            ).collect()
+            players: self
+                .players_by_seats
+                .iter()
+                .map(|opt_player| match opt_player {
+                    Some(player) => Some(PlayerData {
+                        seat_index: player.seat_index,
+                        balance: player.balance,
+                        state: player.state,
+                        bet_amount: player.current_bet,
+                        nickname: self.nicknames[player.seat_index as usize]
+                            .as_ref()
+                            .unwrap()
+                            .to_string(),
+                    }),
+                    None => None,
+                })
+                .collect(),
         }
     }
 
@@ -282,8 +462,10 @@ impl Game {
         for player in &self.players_by_seats {
             match player {
                 None => (),
-                Some(pl) => if pl.state == PlayerState::NotReady {
-                    return Err("not all ready")
+                Some(pl) => {
+                    if pl.state == PlayerState::NotReady {
+                        return Err("not all ready");
+                    }
                 }
             }
         }
@@ -308,7 +490,8 @@ impl Game {
         if first_round {
             self.dealer_seat = self.first_taken_seat();
         } else {
-            self.dealer_seat = next_player(&self.players_by_seats, self.dealer_seat, self.max_players);
+            self.dealer_seat =
+                next_player(&self.players_by_seats, self.dealer_seat, self.max_players);
         }
         self.active_player = self.dealer_seat;
         self.set_players_active(true);
@@ -317,57 +500,50 @@ impl Game {
 
         self.small_blind_seat = self.active_player;
 
-        let message = self.player_action(
-            self.active_player, 
-            PlayerAction::Bet, 
-            self.small_blind
-        );
+        let message = self.player_action(self.active_player, PlayerAction::Bet, self.small_blind);
         match message {
             0 => {
-                    let _ = self.player_action(
-                        self.active_player, 
-                    PlayerAction::AllIn, 
-                    0
-                );
-            },
-            _ => ()
+                let _ = self.player_action(self.active_player, PlayerAction::AllIn, 0);
+            }
+            _ => (),
         }
 
         self.big_blind_seat = self.active_player;
 
-        let message = self.player_action(
-            self.active_player, 
-            PlayerAction::Bet, 
-            self.big_blind
-        );
+        let message = self.player_action(self.active_player, PlayerAction::Bet, self.big_blind);
         match message {
             0 => {
-                    let _ = self.player_action(
-                        self.active_player, 
-                    PlayerAction::AllIn, 
-                    0
-                );
-            },
-            _ => ()
+                let _ = self.player_action(self.active_player, PlayerAction::AllIn, 0);
+            }
+            _ => (),
         }
     }
 
     pub fn set_next_active_player(&mut self) {
-        let mut next_player_seat = next_player(&self.players_by_seats, self.active_player, self.max_players);
-        let mut next_player_active: bool = match self.players_by_seats[next_player_seat].as_ref().unwrap().state {
+        let mut next_player_seat =
+            next_player(&self.players_by_seats, self.active_player, self.max_players);
+        let mut next_player_active: bool = match self.players_by_seats[next_player_seat]
+            .as_ref()
+            .unwrap()
+            .state
+        {
             PlayerState::Folded | PlayerState::Left => false,
-            _ => true
+            _ => true,
         };
         let mut i = 0;
         while !next_player_active {
             next_player_seat = next_player(
-                &self.players_by_seats, 
-                (self.active_player + i) % self.max_players, 
-                self.max_players
+                &self.players_by_seats,
+                (self.active_player + i) % self.max_players,
+                self.max_players,
             );
-            next_player_active = match self.players_by_seats[next_player_seat].as_ref().unwrap().state {
+            next_player_active = match self.players_by_seats[next_player_seat]
+                .as_ref()
+                .unwrap()
+                .state
+            {
                 PlayerState::Folded | PlayerState::Left => false,
-                _ => true
+                _ => true,
             };
             i = i + 1;
             if i > 10 {
@@ -384,16 +560,23 @@ impl Game {
 
     fn set_players_active(&mut self, force: bool) {
         for seat in self.players.values() {
-            println!("player state {:?}", self.players_by_seats[*seat].unwrap().state);
+            println!(
+                "player state {:?}",
+                self.players_by_seats[*seat].unwrap().state
+            );
             let player = self.players_by_seats[*seat].unwrap();
             self.players_by_seats[*seat] = Some(player.set_active(force));
-            println!("player {} state {:?}", player.seat_index, self.players_by_seats[*seat].unwrap().state);
+            println!(
+                "player {} state {:?}",
+                player.seat_index,
+                self.players_by_seats[*seat].unwrap().state
+            );
             // if let Some(mut player) = self.players_by_seats[seat] {
             //     println!("setting player {} as active", player.seat_index);
             //     let _ = player.set_active(force);
             //     println!("player state {:?}", player.state);
             // }
-            
+
             // if let Some(player) = self.players_by_seats[*seat] {println!("player state2 {:?}", player.state);}
         }
     }
@@ -402,25 +585,31 @@ impl Game {
         for seat in 0..self.max_players {
             let _ = match &mut self.players_by_seats[seat] {
                 Some(pl) => pl.collect_bet(),
-                _ => Err("seat empty")
+                _ => Err("seat empty"),
             };
-        };
+        }
     }
 
     fn distribute_winnings(&mut self, winner_seat: usize) {
-        let winnings: u64 = self.players_by_seats.iter().map(
-            |opt_player| match opt_player {
+        let winnings: u64 = self
+            .players_by_seats
+            .iter()
+            .map(|opt_player| match opt_player {
                 Some(player) => player.current_bet + player.total_bet,
-                None => 0
-            }
-        ).sum();
+                None => 0,
+            })
+            .sum();
         println!("winnings are {}, win seat is {}", winnings, winner_seat);
         for seat in 0..self.max_players {
             match &mut self.players_by_seats[seat] {
-                Some(pl) => if pl.seat_index == winner_seat as u8 { pl.collect_win(winnings) },
-                _ => ()
+                Some(pl) => {
+                    if pl.seat_index == winner_seat as u8 {
+                        pl.collect_win(winnings)
+                    }
+                }
+                _ => (),
             };
-        };
+        }
     }
 
     fn someone_won(&self) -> bool {
@@ -429,10 +618,15 @@ impl Game {
         for seat in 0..self.max_players {
             println!("checking if someone won, seat {}", seat);
             match self.players_by_seats[seat] {
-                Some(pl) => if pl.balance > 0 { non_zero_balance += 1; println!("found {} non-zero balance", pl.seat_index); },
-                _ => ()
+                Some(pl) => {
+                    if pl.balance > 0 {
+                        non_zero_balance += 1;
+                        println!("found {} non-zero balance", pl.seat_index);
+                    }
+                }
+                _ => (),
             };
-        };  
+        }
         println!("checking if someone won, status {}", non_zero_balance <= 2);
 
         non_zero_balance <= 2
@@ -442,14 +636,14 @@ impl Game {
         for seat in 0..self.max_players {
             self.players_by_seats[seat] = None;
             self.players.clear();
-        };    
+        }
     }
 
     fn first_taken_seat(&self) -> usize {
         for seat in 0..self.max_players {
             match self.players_by_seats[seat] {
                 Some(_) => return seat,
-                _ => ()
+                _ => (),
             };
         }
         0
@@ -459,27 +653,36 @@ impl Game {
         for seat in 0..self.max_players {
             match &mut self.players_by_seats[seat] {
                 Some(pl) => pl.reset_for_next_round(),
-                _ => ()
+                _ => (),
             };
-        };
+        }
     }
 
     pub fn get_next_active_player(&self) -> usize {
-        let mut next_player_seat = next_player(&self.players_by_seats, self.active_player, self.max_players);
-        let mut next_player_active: bool = match self.players_by_seats[next_player_seat].as_ref().unwrap().state {
+        let mut next_player_seat =
+            next_player(&self.players_by_seats, self.active_player, self.max_players);
+        let mut next_player_active: bool = match self.players_by_seats[next_player_seat]
+            .as_ref()
+            .unwrap()
+            .state
+        {
             PlayerState::Folded | PlayerState::Left => false,
-            _ => true
+            _ => true,
         };
         let mut i = 0;
         while !next_player_active {
             next_player_seat = next_player(
-                &self.players_by_seats, 
-                (self.active_player + i) % self.max_players, 
-                self.max_players
+                &self.players_by_seats,
+                (self.active_player + i) % self.max_players,
+                self.max_players,
             );
-            next_player_active = match self.players_by_seats[next_player_seat].as_ref().unwrap().state {
+            next_player_active = match self.players_by_seats[next_player_seat]
+                .as_ref()
+                .unwrap()
+                .state
+            {
                 PlayerState::Folded | PlayerState::Left => false,
-                _ => true
+                _ => true,
             };
             i = i + 1;
             if i > 10 {
@@ -500,7 +703,7 @@ impl Game {
                     pl.take_card(1, &self.deck[next_card + 1]);
                     next_card += 2;
                 }
-                None => ()
+                None => (),
             }
         }
         for card_offset in 0..5 {
@@ -520,37 +723,40 @@ impl Game {
     fn get_winner_seat(&self) -> usize {
         let mut best_seat = 0;
         let mut best_seat_hand: Option<Eval> = None;
-        let community_cards = self.community_cards.map(|card| card.expect("some community cards are None").to_evaluate()).to_vec();
+        let community_cards = self
+            .community_cards
+            .map(|card| card.expect("some community cards are None").to_evaluate())
+            .to_vec();
         for seat_id in 0..self.max_players {
             match self.players_by_seats[seat_id] {
                 None => (),
-                Some(player) => {
-                    match player.state {
-                        PlayerState::Folded | PlayerState::Left => (),
-                        _ => {
-                            let private_cards = player.cards.map(|card| card.to_evaluate()).to_vec();
-                            let all_cards: Vec<EvaluatorCard> = community_cards.iter().chain(private_cards.iter()).cloned().collect();
-                            let current_hand = self.evaluator.evaluate(all_cards);
-                            match current_hand {
-                                Err(_) => println!("error evaluating hand"),
-                                Ok(eval) => {
-                                    match best_seat_hand {
-                                        None => {
-                                            best_seat_hand = Some(eval);
-                                            best_seat = player.seat_index;
-                                        },
-                                        Some(prev_eval) => {
-                                            if eval.is_better_than(prev_eval) {
-                                                best_seat_hand = Some(eval);
-                                                best_seat = player.seat_index;
-                                            }
-                                        }
+                Some(player) => match player.state {
+                    PlayerState::Folded | PlayerState::Left => (),
+                    _ => {
+                        let private_cards = player.cards.map(|card| card.to_evaluate()).to_vec();
+                        let all_cards: Vec<EvaluatorCard> = community_cards
+                            .iter()
+                            .chain(private_cards.iter())
+                            .cloned()
+                            .collect();
+                        let current_hand = self.evaluator.evaluate(all_cards);
+                        match current_hand {
+                            Err(_) => println!("error evaluating hand"),
+                            Ok(eval) => match best_seat_hand {
+                                None => {
+                                    best_seat_hand = Some(eval);
+                                    best_seat = player.seat_index;
+                                }
+                                Some(prev_eval) => {
+                                    if eval.is_better_than(prev_eval) {
+                                        best_seat_hand = Some(eval);
+                                        best_seat = player.seat_index;
                                     }
                                 }
-                            }
+                            },
                         }
                     }
-                }
+                },
             }
         }
 
@@ -562,7 +768,7 @@ impl Game {
         for player_id in &self.players_by_seats {
             match player_id {
                 Some(_) => count += 1,
-                _ => ()
+                _ => (),
             }
         }
         count
@@ -572,10 +778,12 @@ impl Game {
         let mut max_bet = 0;
         for player in &self.players_by_seats {
             match player {
-                Some(pl) => if pl.current_bet > max_bet {
-                    max_bet = pl.current_bet;
-                },
-                _ => ()
+                Some(pl) => {
+                    if pl.current_bet > max_bet {
+                        max_bet = pl.current_bet;
+                    }
+                }
+                _ => (),
             }
         }
         max_bet
@@ -587,11 +795,13 @@ impl Game {
             match player {
                 Some(pl) => match pl.state {
                     PlayerState::Folded | PlayerState::Left => (),
-                    _ => if pl.current_bet != max_bet {
-                        return false;
-                    },
-                }
-                _ => ()
+                    _ => {
+                        if pl.current_bet != max_bet {
+                            return false;
+                        }
+                    }
+                },
+                _ => (),
             }
         }
         true
@@ -600,10 +810,12 @@ impl Game {
     fn round_end(&self) -> bool {
         for player in &self.players_by_seats {
             match player {
-                Some(pl) => if pl.state == PlayerState::Active {
-                    return false;
-                },
-                _ => ()
+                Some(pl) => {
+                    if pl.state == PlayerState::Active {
+                        return false;
+                    }
+                }
+                _ => (),
             }
         }
         true
@@ -615,7 +827,7 @@ pub enum Color {
     Hearts,
     Diamonds,
     Spades,
-    Clubs
+    Clubs,
 }
 
 impl Color {
@@ -625,7 +837,7 @@ impl Color {
             Hearts => EvaluatorColor::Hearts,
             Diamonds => EvaluatorColor::Diamonds,
             Spades => EvaluatorColor::Spades,
-            Clubs => EvaluatorColor::Clubs
+            Clubs => EvaluatorColor::Clubs,
         }
     }
 }
@@ -644,7 +856,7 @@ pub enum Rank {
     Jack,
     Queen,
     King,
-    Ace
+    Ace,
 }
 
 impl Rank {
@@ -663,7 +875,7 @@ impl Rank {
             Jack => EvaluatorRank::Jack,
             Queen => EvaluatorRank::Queen,
             King => EvaluatorRank::King,
-            Ace => EvaluatorRank::Ace
+            Ace => EvaluatorRank::Ace,
         }
     }
 }
@@ -671,20 +883,20 @@ impl Rank {
 #[derive(Clone, Copy, Serialize, Debug)]
 enum GamePhase {
     PreFlop, // every player has 2 cards, 0 community cards
-    Flop, // first 3 community cards
-    Turn, // 4th community card
-    River // 5th community card on the table
+    Flop,    // first 3 community cards
+    Turn,    // 4th community card
+    River,   // 5th community card on the table
 }
 
 #[derive(Clone, Copy, Serialize, Debug)]
 pub struct Card {
     rank: Rank,
-    color: Color
+    color: Color,
 }
 
 impl Card {
     pub fn new(color: Color, rank: Rank) -> Card {
-        Card{color, rank}
+        Card { color, rank }
     }
 
     pub fn to_evaluate(&self) -> EvaluatorCard {
@@ -696,5 +908,5 @@ impl Card {
 pub enum GamePlayState {
     NotStarted,
     Started,
-    Ended
+    Ended,
 }

@@ -3,11 +3,8 @@ mod poker {
     pub mod games_manager;
     pub mod player;
 }
-use poker::game::Card;
-use poker::game::Game;
 use poker::games_manager::GamesManager;
 use poker::games_manager::GamesManagerArc;
-use poker::player::Player;
 use std::sync::{Arc, RwLock};
 
 use actix_cors::Cors;
@@ -16,7 +13,6 @@ use actix_web::cookie::Key;
 use actix_web::{get, post, web, App, HttpResponse, HttpServer, Responder};
 use poker::player::PlayerAction;
 use serde::Deserialize;
-use serde::Serialize;
 use uuid::Uuid;
 
 // handlers structures
@@ -164,11 +160,7 @@ async fn set_ready(
             .get(&session.get::<Uuid>("player_id").unwrap().unwrap())
             .unwrap();
         println!("ddd {} {}", *player_index, body.new_ready_state);
-        let ok = game.set_ready(
-            *player_index,
-            body.new_ready_state,
-        );
-        // println!("{:?} {:?}", ok, game.players_by_seats[*player_index].unwrap().state);
+        let ok = game.set_ready(*player_index, body.new_ready_state);
         response = serde_json::json!({
             "message": "success",
         });
@@ -218,7 +210,7 @@ async fn game_state(
 
 #[get("/listen_changes")]
 async fn listen_changes(session: Session, query: web::Query<GameId>) -> impl Responder {
-    // long polling
+    // long polling dont work
     if let Err(err) = check_joined(&session) {
         return err;
     }
@@ -277,7 +269,7 @@ async fn quit_game(session: Session) -> impl Responder {
 async fn main() -> std::io::Result<()> {
     let secret_key = Key::generate();
 
-    let mut games_manager = Arc::new(RwLock::new(GamesManager::new_manager()));
+    let games_manager = Arc::new(RwLock::new(GamesManager::new_manager()));
 
     HttpServer::new(move || {
         App::new()
